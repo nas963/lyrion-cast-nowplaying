@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extensions>
+  <details>
+    <title lang="EN">Cast Now Playing</title>
+  </details>
+  <plugins>
+    <plugin name="CastNowPlaying" version="0.1.0" minTarget="8.0" maxTarget="*">
+      <title lang="EN">Cast Now Playing</title>
+      <title lang="SR">Cast Now Playing</title>
+      <desc lang="EN">Shows the now playing screen (cover, title, artist, album, progress) on Chromecast and Google Cast TVs.</desc>
+      <desc lang="SR">Prikazuje ekran sa pesmom koja svira (omot, naslov, izvođač, album, napredak) na Chromecast i Google Cast televizorima.</desc>
+      <creator>nas963</creator>
+      <category>information</category>
+      <link>https://github.com/nas963/lyrion-cast-nowplaying</link>
+      <url>https://github.com/nas963/lyrion-cast-nowplaying/releases/download/v0.1.0/CastNowPlaying-0.1.0.zip</url>
+      <sha>43edb0450c82dab95bb08038dfea83fadd73d241</sha>
+    </plugin>
+  </plugins>
+</extensions>
