@@ -1,0 +1,51 @@
+PLUGIN_CASTNOWPLAYING
+	EN	Cast Now Playing
+	SR	Cast Now Playing
+
+PLUGIN_CASTNOWPLAYING_DESC
+	EN	Shows the now playing screen (cover, title, artist, album, progress) on Chromecast and Google Cast TVs.
+	SR	Prikazuje ekran sa pesmom koja svira (omot, naslov, izvođač, album, napredak) na Chromecast i Google Cast televizorima.
+
+PLUGIN_CASTNOWPLAYING_DEVICES
+	EN	Cast screens
+	SR	Cast ekrani
+
+PLUGIN_CASTNOWPLAYING_DEVICES_DESC
+	EN	Turn on the screens that should show what is playing, and pick the player each one follows. The screen is only taken when it is free: if another app is running, or the TV is off or on another input, nothing is shown until playback is started again.
+	SR	Uključite ekrane na kojima treba da se vidi šta svira i izaberite plejer koji svaki prati. Ekran se preuzima samo kad je slobodan: ako radi druga aplikacija, ili je TV ugašen ili na drugom ulazu, ništa se ne prikazuje dok se reprodukcija ponovo ne pokrene.
+
+PLUGIN_CASTNOWPLAYING_NONE_FOUND
+	EN	No Cast devices found yet. Make sure the TV or box is on and in the same network, then reload this page.
+	SR	Još nije pronađen nijedan Cast uređaj. Proverite da je TV ili boks upaljen i u istoj mreži, pa ponovo učitajte stranicu.
+
+PLUGIN_CASTNOWPLAYING_SHOW
+	EN	Show
+	SR	Prikaz
+
+PLUGIN_CASTNOWPLAYING_DEVICE
+	EN	Device
+	SR	Uređaj
+
+PLUGIN_CASTNOWPLAYING_PLAYER
+	EN	Follows player
+	SR	Prati plejer
+
+PLUGIN_CASTNOWPLAYING_STATUS
+	EN	Status
+	SR	Stanje
+
+PLUGIN_CASTNOWPLAYING_NO_SCREEN
+	EN	no screen
+	SR	nema ekran
+
+PLUGIN_CASTNOWPLAYING_OFFLINE
+	EN	not seen now
+	SR	trenutno nije viđen
+
+PLUGIN_CASTNOWPLAYING_IDLE
+	EN	Close after pause (minutes)
+	SR	Zatvori posle pauze (minuta)
+
+PLUGIN_CASTNOWPLAYING_IDLE_DESC
+	EN	When the player is paused or stopped this long, the now playing screen is closed and the TV returns to its home screen. 0 keeps it open.
+	SR	Kad je plejer u pauzi ili zaustavljen ovoliko dugo, ekran se zatvara i TV se vraća na početni ekran. 0 znači da ostaje otvoren.

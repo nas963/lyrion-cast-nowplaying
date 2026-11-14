@@ -1,0 +1,54 @@
+[% PROCESS settings/header.html %]
+
+	[% WRAPPER setting title="PLUGIN_CASTNOWPLAYING_DEVICES" desc="PLUGIN_CASTNOWPLAYING_DEVICES_DESC" %]
+		[% IF castDevices.size == 0 %]
+			<div>[% "PLUGIN_CASTNOWPLAYING_NONE_FOUND" | string %]</div>
+		[% ELSE %]
+		<table class="castnp">
+			<tr>
+				<th>[% "PLUGIN_CASTNOWPLAYING_SHOW" | string %]</th>
+				<th>[% "PLUGIN_CASTNOWPLAYING_DEVICE" | string %]</th>
+				<th>[% "PLUGIN_CASTNOWPLAYING_PLAYER" | string %]</th>
+				<th>[% "PLUGIN_CASTNOWPLAYING_STATUS" | string %]</th>
+			</tr>
+			[% FOREACH d IN castDevices %]
+			<tr[% IF !d.display %] class="castnp-nodisplay"[% END %]>
+				<td>
+					<input type="hidden" name="dev_id_[% loop.index %]" value="[% d.id | html %]">
+					<input type="hidden" name="dev_name_[% loop.index %]" value="[% d.name | html %]">
+					<input type="checkbox" name="dev_enabled_[% loop.index %]" value="1" [% IF d.enabled %]checked[% END %] [% IF !d.display %]disabled[% END %]>
+				</td>
+				<td>
+					[% d.name | html %]
+					<div class="castnp-sub">[% d.model | html %][% IF d.ip %] &middot; [% d.ip | html %][% END %][% IF !d.display %] &middot; [% "PLUGIN_CASTNOWPLAYING_NO_SCREEN" | string %][% END %][% IF !d.online %] &middot; [% "PLUGIN_CASTNOWPLAYING_OFFLINE" | string %][% END %]</div>
+				</td>
+				<td>
+					[% IF d.display %]
+					<select class="stdedit" name="dev_player_[% loop.index %]">
+						<option value="">&mdash;</option>
+						[% FOREACH p IN castPlayers %]
+						<option value="[% p.id | html %]" [% IF d.player == p.id %]selected[% END %]>[% p.name | html %]</option>
+						[% END %]
+					</select>
+					[% END %]
+				</td>
+				<td class="castnp-sub">[% d.status | html %]</td>
+			</tr>
+			[% END %]
+		</table>
+		[% END %]
+	[% END %]
+
+	[% WRAPPER setting title="PLUGIN_CASTNOWPLAYING_IDLE" desc="PLUGIN_CASTNOWPLAYING_IDLE_DESC" %]
+		<input type="number" class="stdedit" name="pref_idleMinutes" value="[% prefs.pref_idleMinutes | html %]" min="0" max="1440" step="1">
+	[% END %]
+
+<style>
+	table.castnp { border-collapse: collapse; }
+	table.castnp th { text-align: left; font-weight: normal; opacity: .7; padding: 2px 12px 6px 0; }
+	table.castnp td { padding: 4px 12px 4px 0; vertical-align: middle; }
+	.castnp-sub { font-size: 85%; opacity: .7; }
+	tr.castnp-nodisplay { opacity: .5; }
+</style>
+
+[% PROCESS settings/footer.html %]
