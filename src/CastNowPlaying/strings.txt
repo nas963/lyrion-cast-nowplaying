@@ -49,3 +49,19 @@ PLUGIN_CASTNOWPLAYING_IDLE
 PLUGIN_CASTNOWPLAYING_IDLE_DESC
 	EN	When the player is paused or stopped this long, the now playing screen is closed and the TV returns to its home screen. 0 keeps it open.
 	SR	Kad je plejer u pauzi ili zaustavljen ovoliko dugo, ekran se zatvara i TV se vraća na početni ekran. 0 znači da ostaje otvoren.
+
+PLUGIN_CASTNOWPLAYING_TOGGLE
+	EN	Cast screen on/off
+	SR	Cast ekran uključi/isključi
+
+PLUGIN_CASTNOWPLAYING_TOGGLE_ON
+	EN	Cast screen on
+	SR	Cast ekran uključen
+
+PLUGIN_CASTNOWPLAYING_TOGGLE_OFF
+	EN	Cast screen off
+	SR	Cast ekran isključen
+
+PLUGIN_CASTNOWPLAYING_TOGGLE_NONE
+	EN	No Cast screen follows this player. Pick one in the plugin settings.
+	SR	Nijedan Cast ekran ne prati ovaj plejer. Izaberite ga u podešavanjima plugina.

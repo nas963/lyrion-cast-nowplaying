@@ -57,6 +57,60 @@ sub initPlugin {
 
 	Slim::Control::Request::subscribe(\&_onEvent,
 		[[ 'playlist', 'play', 'pause', 'stop', 'mode', 'time', 'power', 'client' ]]);
+
+	# castnowplaying toggle: turns the Cast screens that follow this player on or off
+	Slim::Control::Request::addDispatch([ 'castnowplaying', 'toggle' ], [ 1, 0, 0, \&_cliToggle ]);
+}
+
+# Material Skin (if installed) gets a "Cast screen" item in the player menu
+my $MATERIAL_ACTION;
+
+sub postinitPlugin {
+	return unless Slim::Utils::PluginManager->isEnabled('Plugins::MaterialSkin::Plugin');
+	my $register = Plugins::MaterialSkin::Plugin->can('registerCustomAction') or return;
+	$MATERIAL_ACTION = {
+		title   => Slim::Utils::Strings::string('PLUGIN_CASTNOWPLAYING_TOGGLE'),
+		icon    => 'cast',
+		players => [],
+		script  => 'lmsCommand("$ID",["castnowplaying","toggle"]).then(({data})=>{'
+		         . 'if(data&&data.result&&data.result.message){bus.$emit("showMessage",data.result.message);}})',
+	};
+	_material_players();
+	eval { $register->('players', $MATERIAL_ACTION); 1 } or $log->warn("Material menu: $@");
+}
+
+# the menu item is shown only for players that some Cast screen follows (in place, Material keeps the ref)
+sub _material_players {
+	return unless $MATERIAL_ACTION;
+	my $conf = $prefs->get('devices') || {};
+	my %p = map { $_->{player} => 1 } grep { $_->{player} } values %$conf;
+	@{ $MATERIAL_ACTION->{players} } = sort keys %p;
+}
+
+sub _cliToggle {
+	my $request = shift;
+	my $client = $request->client;
+	if (!$client) { $request->setStatusBadDispatch; return; }
+	my ($on, @names) = toggle($client->id);
+	my $msg = !@names ? Slim::Utils::Strings::string('PLUGIN_CASTNOWPLAYING_TOGGLE_NONE')
+		: Slim::Utils::Strings::string($on ? 'PLUGIN_CASTNOWPLAYING_TOGGLE_ON' : 'PLUGIN_CASTNOWPLAYING_TOGGLE_OFF') . ': ' . join(', ', @names);
+	$request->addResult('on', $on ? 1 : 0);
+	$request->addResult('message', $msg);
+	$request->setStatusDone;
+}
+
+# all screens following $mac go on if none of them is on, otherwise all go off; returns (on, names)
+sub toggle {
+	my $mac = shift;
+	my $conf = $prefs->get('devices') || {};
+	my @ids = sort grep { ($conf->{$_}{player} // '') eq $mac } keys %$conf;
+	return (0) unless @ids;
+	my $on = !grep { $conf->{$_}{enabled} } @ids;
+	my %new = map { $_ => { %{ $conf->{$_} } } } keys %$conf;    # copy, so the pref really changes
+	$new{$_}{enabled} = $on ? 1 : 0 for @ids;
+	$prefs->set('devices', \%new);
+	reconfigure();
+	return ($on, map { $new{$_}{name} // $_ } @ids);
 }
 
 sub shutdownPlugin {
@@ -88,6 +142,7 @@ sub reconfigure {
 		}
 	}
 	Plugins::CastNowPlaying::Discovery->refresh;
+	_material_players();
 	_update($_) for grep { defined } map { Slim::Player::Client::getClient($_) } _followed_players();
 }
 
