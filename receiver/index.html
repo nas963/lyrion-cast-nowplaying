@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LMS Now Playing</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+<style>
+  :root { --fg: #fff; --fg2: rgba(255,255,255,.72); --fg3: rgba(255,255,255,.55); --accent: #e0835a; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #111; color: var(--fg);
+    font-family: Roboto, "Noto Sans", Arial, sans-serif; }
+  #bg, #bg2 { position: absolute; inset: -6vh; background-size: cover; background-position: center;
+    filter: blur(60px) saturate(1.3) brightness(.45); transition: opacity 1.2s; }
+  #shade { position: absolute; inset: 0; background: radial-gradient(ellipse at 65% 75%, rgba(0,0,0,0) 0%, rgba(0,0,0,.55) 70%); }
+  #stage { position: absolute; inset: 0; display: flex; align-items: center; padding: 4.5vh 4vw; gap: 4vw;
+    transition: transform 2s; }
+  #art { height: 91vh; width: 91vh; flex: none; border-radius: 1vh; object-fit: cover;
+    box-shadow: 0 2vh 6vh rgba(0,0,0,.6); background: #222; transition: opacity .6s; }
+  #side { flex: 1; min-width: 0; height: 91vh; display: flex; flex-direction: column; }
+  #meta { flex: 1; display: flex; flex-direction: column; justify-content: center; text-align: center; gap: 3.2vh; }
+  #title { font-size: 5.6vh; font-weight: 500; line-height: 1.15; }
+  #artist, #album { font-size: 4.2vh; color: var(--fg2); line-height: 1.2; }
+  .pre { font-size: .72em; color: var(--fg3); margin-right: .3em; }
+  .clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  #info { text-align: center; font-size: 1.9vh; color: var(--fg2); margin-bottom: 1.4vh; min-height: 2.4vh; }
+  #bar { display: flex; align-items: center; gap: 1.6vw; font-size: 2.1vh; color: var(--fg2); font-variant-numeric: tabular-nums; }
+  #track { flex: 1; height: .6vh; border-radius: .3vh; background: rgba(255,255,255,.18); overflow: hidden; }
+  #fill { height: 100%; width: 0; background: var(--accent); }
+  #bar.noprog #track, #bar.noprog #dur { visibility: hidden; }
+  #paused { position: absolute; top: 4vh; right: 4vw; font-size: 2vh; letter-spacing: .3em; color: var(--fg3);
+    opacity: 0; transition: opacity .4s; }
+  body.paused #paused { opacity: 1; }
+  body.paused #fill { background: var(--fg3); }
+  #idle { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    font-size: 3vh; color: var(--fg3); }
+  body.idle #stage, body.idle #bg, body.idle #bg2 { display: none; }
+  body.idle #idle { display: flex; }
+</style>
+</head>
+<body class="idle">
+<div id="bg"></div><div id="bg2" style="opacity:0"></div><div id="shade"></div>
+<div id="stage">
+  <img id="art" alt="">
+  <div id="side">
+    <div id="meta">
+      <div id="title" class="clamp"></div>
+      <div id="artist" class="clamp"></div>
+      <div id="album" class="clamp"></div>
+    </div>
+    <div id="info"></div>
+    <div id="bar"><span id="pos">0:00</span><div id="track"><div id="fill"></div></div><span id="dur">0:00</span></div>
+  </div>
+</div>
+<div id="paused">PAUSED</div>
+<div id="idle">Lyrion Music Server</div>
+<script>
+'use strict';
+const NS = 'urn:x-cast:lms.nowplaying';
+const $ = id => document.getElementById(id);
+let st = { duration: 0, elapsed: 0, at: 0, playing: false };
+let curCover = null, bgFront = 'bg';
+
+function fmt(s) {
+  s = Math.max(0, Math.floor(s || 0));
+  const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = String(s % 60).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${x}` : `${m}:${x}`;
+}
+
+function setText(el, pre, txt) {
+  el.textContent = '';
+  if (!txt) return;
+  if (pre) { const p = document.createElement('span'); p.className = 'pre'; p.textContent = pre; el.appendChild(p); }
+  el.appendChild(document.createTextNode(txt));
+}
+
+function setCover(url) {
+  if (!url || url === curCover) return;
+  curCover = url;
+  const img = new Image();
+  img.onload = () => {
+    $('art').src = url;
+    const back = bgFront === 'bg' ? 'bg2' : 'bg';
+    $(back).style.backgroundImage = `url("${url}")`;
+    $(back).style.opacity = 1; $(bgFront).style.opacity = 0; bgFront = back;
+  };
+  img.src = url;
+}
+
+function render(m) {
+  if (m.type === 'idle') { document.body.className = 'idle'; return; }
+  document.body.classList.remove('idle');
+  setText($('title'), m.trackNum ? String(m.trackNum).padStart(2, '0') + ' •' : '', m.title || '');
+  setText($('artist'), m.artist ? 'by' : '', m.artist || '');
+  setText($('album'), m.album ? 'from' : '', m.album ? m.album + (m.year ? ` (${m.year})` : '') : '');
+  $('info').textContent = m.info || '';
+  setCover(m.cover);
+  st = { duration: +m.duration || 0, elapsed: +m.elapsed || 0, at: performance.now(), playing: !!m.playing };
+  document.body.classList.toggle('paused', !st.playing);
+  tick();
+}
+
+function tick() {
+  let pos = st.elapsed;
+  if (st.playing) pos += (performance.now() - st.at) / 1000;
+  if (st.duration) pos = Math.min(pos, st.duration);
+  $('pos').textContent = fmt(pos);
+  $('dur').textContent = fmt(st.duration);
+  $('bar').classList.toggle('noprog', !st.duration);
+  $('fill').style.width = st.duration ? (100 * pos / st.duration).toFixed(3) + '%' : '0';
+}
+setInterval(tick, 500);
+
+// slow drift against burn-in on OLED / plasma
+let drift = 0;
+setInterval(() => { drift = (drift + 1) % 4; const d = [[0,0],[6,4],[0,8],[-6,4]][drift];
+  $('stage').style.transform = `translate(${d[0]}px, ${d[1]}px)`; }, 120000);
+
+if (window.cast && cast.framework && /CrKey|Android|AFT|Web0S|Tizen/i.test(navigator.userAgent)) {
+  const ctx = cast.framework.CastReceiverContext.getInstance();
+  ctx.addCustomMessageListener(NS, ev => {
+    let m = ev.data; if (typeof m === 'string') { try { m = JSON.parse(m); } catch (e) { return; } }
+    render(m || {});
+  });
+  const opts = new cast.framework.CastReceiverOptions();
+  opts.disableIdleTimeout = true;
+  opts.skipPlayersLoad = true;
+  opts.statusText = 'Now Playing';
+  ctx.start(opts);
+} else {
+  // plain browser preview: index.html?demo
+  window.render = render;
+  if (location.search.includes('demo')) render({ type: 'track', trackNum: 4, title: 'Basin Street Blues', artist: 'Toshio Oida',
+    album: 'It Was a Very Good Year', year: 1976, duration: 248, elapsed: 134, playing: true,
+    info: '798kbps VBR, 16bit, 44.1kHz, flc • 4 of 10', cover: '' });
+}
+</script>
+</body>
+</html>
