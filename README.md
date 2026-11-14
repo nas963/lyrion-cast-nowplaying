@@ -20,9 +20,6 @@ CLI: `<player> castnowplaying toggle`.
 The screen is only taken when it is free: if another app is running on the TV, or the TV is off or
 on another input, nothing is shown until playback is started again.
 
-> The Cast receiver app is not published by Google yet, so for now it only starts on devices
-> registered as test devices of the developer.
-
 ## Layout
 
 - `src/CastNowPlaying/` - the LMS plugin
