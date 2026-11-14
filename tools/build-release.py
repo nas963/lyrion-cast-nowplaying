@@ -9,6 +9,7 @@ import hashlib
 import pathlib
 import re
 import sys
+import time
 import zipfile
 from xml.sax.saxutils import escape
 
@@ -16,6 +17,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 PLUGIN = ROOT / 'src' / 'CastNowPlaying'
 NAME = 'CastNowPlaying'
 GITHUB = 'https://github.com/nas963/lyrion-cast-nowplaying'
+BUILD_TIME = time.localtime()[:6]
 TEXT_SUFFIXES = {'.pm', '.txt', '.html', '.js', '.xml', '.css', '.md'}
 
 
@@ -32,7 +34,8 @@ def strings(key):
 
 
 def add(out, name, data):
-    info = zipfile.ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
+    # build time, not a fixed date: LMS rebuilds its strings cache only when strings.txt gets newer
+    info = zipfile.ZipInfo(name, date_time=BUILD_TIME)
     info.compress_type = zipfile.ZIP_DEFLATED
     info.external_attr = 0o644 << 16
     out.writestr(info, data)
