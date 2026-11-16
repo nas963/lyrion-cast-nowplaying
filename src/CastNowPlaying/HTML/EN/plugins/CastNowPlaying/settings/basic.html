@@ -14,9 +14,8 @@
 			[% FOREACH d IN castDevices %]
 			<tr[% IF !d.display %] class="castnp-nodisplay"[% END %]>
 				<td>
-					<input type="hidden" name="dev_id_[% loop.index %]" value="[% d.id | html %]">
-					<input type="hidden" name="dev_name_[% loop.index %]" value="[% d.name | html %]">
-					<input type="checkbox" name="dev_enabled_[% loop.index %]" value="1" [% IF d.enabled %]checked[% END %] [% IF !d.display %]disabled[% END %]>
+					<input type="hidden" name="dev_name_[% d.id | html %]" value="[% d.name | html %]">
+					<input type="checkbox" name="dev_enabled_[% d.id | html %]" value="1" autocomplete="off" [% IF d.enabled %]checked[% END %] [% IF !d.display %]disabled[% END %]>
 				</td>
 				<td>
 					[% d.name | html %]
@@ -24,7 +23,7 @@
 				</td>
 				<td>
 					[% IF d.display %]
-					<select class="stdedit" name="dev_player_[% loop.index %]">
+					<select class="stdedit" name="dev_player_[% d.id | html %]" autocomplete="off">
 						<option value="">&mdash;</option>
 						[% FOREACH p IN castPlayers %]
 						<option value="[% p.id | html %]" [% IF d.player == p.id %]selected[% END %]>[% p.name | html %]</option>

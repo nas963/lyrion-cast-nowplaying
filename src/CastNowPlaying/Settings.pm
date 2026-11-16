@@ -23,16 +23,15 @@ sub handler {
 	my ($class, $client, $params, @rest) = @_;
 
 	if ($params->{saveSettings}) {
+		# fields carry the Cast id, not the row number, so a row that moved can never get another row's values
 		my $conf = { %{ $prefs->get('devices') || {} } };
-		for my $i (0 .. 199) {
-			my $id = $params->{"dev_id_$i"};
-			last unless defined $id;
-			next unless $id =~ /^[\w.:-]{1,64}\z/;
-			my $player = $params->{"dev_player_$i"} // '';
+		for my $key (keys %$params) {
+			my ($id) = $key =~ /^dev_name_([0-9a-zA-Z_.-]{1,64})\z/ or next;
+			my $player = $params->{"dev_player_$id"} // '';
 			$player = '' unless $player =~ /^[0-9a-f:.-]{1,40}\z/i;
-			my $enabled = $params->{"dev_enabled_$i"} ? 1 : 0;
+			my $enabled = $params->{"dev_enabled_$id"} ? 1 : 0;
 			if (!$enabled && !$player) { delete $conf->{$id}; next }
-			$conf->{$id} = { enabled => $enabled, player => $player, name => $params->{"dev_name_$i"} // $id };
+			$conf->{$id} = { enabled => $enabled, player => $player, name => $params->{$key} // $id };
 		}
 		$prefs->set('devices', $conf);
 		my $idle = $params->{pref_idleMinutes} // '';

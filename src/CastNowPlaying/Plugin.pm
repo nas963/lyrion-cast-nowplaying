@@ -185,7 +185,14 @@ sub known_devices {
 		$d->{player} = $c->{player} // '';
 		$d->{status} = $DEV{ $d->{id} } ? $DEV{ $d->{id} }->status : '';
 	}
-	return [ sort { $b->{display} <=> $a->{display} || lc $a->{name} cmp lc $b->{name} } values %all ];
+	# stable order: two boxes with the same name must not swap places between page loads
+	return [ sort { $b->{display} <=> $a->{display} || lc $a->{name} cmp lc $b->{name}
+		|| _ipkey($a->{ip}) cmp _ipkey($b->{ip}) || $a->{id} cmp $b->{id} } values %all ];
+}
+
+sub _ipkey {
+	my $ip = shift // '';
+	return $ip =~ /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/ ? sprintf('%03d%03d%03d%03d', $1, $2, $3, $4) : "~$ip";
 }
 
 # ---------------------------------------------------------------- player events
