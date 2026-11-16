@@ -14,12 +14,16 @@
 			[% FOREACH d IN castDevices %]
 			<tr[% IF !d.display %] class="castnp-nodisplay"[% END %]>
 				<td>
-					<input type="hidden" name="dev_name_[% d.id | html %]" value="[% d.name | html %]">
+					<input type="hidden" name="dev_name_[% d.id | html %]" value="[% d.castName | html %]">
 					<input type="checkbox" name="dev_enabled_[% d.id | html %]" value="1" autocomplete="off" [% IF d.enabled %]checked[% END %] [% IF !d.display %]disabled[% END %]>
 				</td>
 				<td>
+					[% IF d.display %]
+					<input type="text" class="stdedit castnp-label" name="dev_label_[% d.id | html %]" value="[% d.label | html %]" placeholder="[% d.castName | html %]" maxlength="64" autocomplete="off" title="[% "PLUGIN_CASTNOWPLAYING_RENAME" | string %]">
+					[% ELSE %]
 					[% d.name | html %]
-					<div class="castnp-sub">[% d.model | html %][% IF d.ip %] &middot; [% d.ip | html %][% END %][% IF !d.display %] &middot; [% "PLUGIN_CASTNOWPLAYING_NO_SCREEN" | string %][% END %][% IF !d.online %] &middot; [% "PLUGIN_CASTNOWPLAYING_OFFLINE" | string %][% END %]</div>
+					[% END %]
+					<div class="castnp-sub">[% IF d.label %][% d.castName | html %] &middot; [% END %][% d.model | html %][% IF d.ip %] &middot; [% d.ip | html %][% END %][% IF !d.display %] &middot; [% "PLUGIN_CASTNOWPLAYING_NO_SCREEN" | string %][% END %][% IF !d.online %] &middot; [% "PLUGIN_CASTNOWPLAYING_OFFLINE" | string %][% END %]</div>
 				</td>
 				<td>
 					[% IF d.display %]
@@ -47,6 +51,7 @@
 	table.castnp th { text-align: left; font-weight: normal; opacity: .7; padding: 2px 12px 6px 0; }
 	table.castnp td { padding: 4px 12px 4px 0; vertical-align: middle; }
 	.castnp-sub { font-size: 85%; opacity: .7; }
+	input.castnp-label { width: 16em; }
 	tr.castnp-nodisplay { opacity: .5; }
 </style>
 

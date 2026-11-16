@@ -12,6 +12,7 @@ Pure Perl, no helper programs: works with LMS 8.0+ on any platform.
    `https://nas963.github.io/lyrion-cast-nowplaying/repo.xml` and click **Apply**.
 3. Tick **Cast Now Playing** in the list, click **Apply** and restart LMS when asked.
 4. Open the plugin's settings, tick **Show** for the screens you want and pick the player each one follows.
+   Two boxes with the same name can get names of your own (e.g. "Living room") in the same table.
 
 With Material Skin, the player menu gets a **Cast screen on/off** item for every player that a Cast
 screen follows, so the screen can be switched without opening the settings. The same works from the

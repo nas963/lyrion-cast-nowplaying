@@ -110,7 +110,7 @@ sub toggle {
 	$new{$_}{enabled} = $on ? 1 : 0 for @ids;
 	$prefs->set('devices', \%new);
 	reconfigure();
-	return ($on, map { $new{$_}{name} // $_ } @ids);
+	return ($on, map { $new{$_}{label} || $new{$_}{name} // $_ } @ids);
 }
 
 sub shutdownPlugin {
@@ -184,6 +184,10 @@ sub known_devices {
 		$d->{enabled} = $c->{enabled} ? 1 : 0;
 		$d->{player} = $c->{player} // '';
 		$d->{status} = $DEV{ $d->{id} } ? $DEV{ $d->{id} }->status : '';
+		# own name from the settings page; the Cast name stays the fallback
+		$d->{castName} = $d->{name};
+		$d->{label} = $c->{label} // '';
+		$d->{name} = $d->{label} if length $d->{label};
 	}
 	# stable order: two boxes with the same name must not swap places between page loads
 	return [ sort { $b->{display} <=> $a->{display} || lc $a->{name} cmp lc $b->{name}

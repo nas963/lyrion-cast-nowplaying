@@ -11,8 +11,8 @@ PLUGIN_CASTNOWPLAYING_DEVICES
 	SR	Cast ekrani
 
 PLUGIN_CASTNOWPLAYING_DEVICES_DESC
-	EN	Turn on the screens that should show what is playing, and pick the player each one follows. The screen is only taken when it is free: if another app is running, or the TV is off or on another input, nothing is shown until playback is started again.
-	SR	Uključite ekrane na kojima treba da se vidi šta svira i izaberite plejer koji svaki prati. Ekran se preuzima samo kad je slobodan: ako radi druga aplikacija, ili je TV ugašen ili na drugom ulazu, ništa se ne prikazuje dok se reprodukcija ponovo ne pokrene.
+	EN	Turn on the screens that should show what is playing, pick the player each one follows, and give a screen your own name if you like. The screen is only taken when it is free: if another app is running, or the TV is off or on another input, nothing is shown until playback is started again.
+	SR	Uključite ekrane na kojima treba da se vidi šta svira, izaberite plejer koji svaki prati i, po želji, dajte ekranu svoje ime. Ekran se preuzima samo kad je slobodan: ako radi druga aplikacija, ili je TV ugašen ili na drugom ulazu, ništa se ne prikazuje dok se reprodukcija ponovo ne pokrene.
 
 PLUGIN_CASTNOWPLAYING_NONE_FOUND
 	EN	No Cast devices found yet. Make sure the TV or box is on and in the same network, then reload this page.
@@ -65,3 +65,7 @@ PLUGIN_CASTNOWPLAYING_TOGGLE_OFF
 PLUGIN_CASTNOWPLAYING_TOGGLE_NONE
 	EN	No Cast screen follows this player. Pick one in the plugin settings.
 	SR	Nijedan Cast ekran ne prati ovaj plejer. Izaberite ga u podešavanjima plugina.
+
+PLUGIN_CASTNOWPLAYING_RENAME
+	EN	Name shown for this screen. Leave empty to use the name the device reports.
+	SR	Ime koje se prikazuje za ovaj ekran. Prazno znači ime koje uređaj sam prijavljuje.

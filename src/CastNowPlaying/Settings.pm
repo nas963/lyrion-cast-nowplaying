@@ -30,8 +30,13 @@ sub handler {
 			my $player = $params->{"dev_player_$id"} // '';
 			$player = '' unless $player =~ /^[0-9a-f:.-]{1,40}\z/i;
 			my $enabled = $params->{"dev_enabled_$id"} ? 1 : 0;
-			if (!$enabled && !$player) { delete $conf->{$id}; next }
-			$conf->{$id} = { enabled => $enabled, player => $player, name => $params->{$key} // $id };
+			my $label = $params->{"dev_label_$id"} // '';
+			$label =~ s/[\x00-\x1f\x7f]//g;
+			$label =~ s/^\s+|\s+$//g;
+			$label = substr($label, 0, 64);
+			if (!$enabled && !$player && !length $label) { delete $conf->{$id}; next }
+			$conf->{$id} = { enabled => $enabled, player => $player, name => $params->{$key} // $id,
+				(length $label ? (label => $label) : ()) };
 		}
 		$prefs->set('devices', $conf);
 		my $idle = $params->{pref_idleMinutes} // '';
