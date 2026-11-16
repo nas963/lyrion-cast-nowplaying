@@ -62,29 +62,49 @@ sub initPlugin {
 	Slim::Control::Request::addDispatch([ 'castnowplaying', 'toggle' ], [ 1, 0, 0, \&_cliToggle ]);
 }
 
-# Material Skin (if installed) gets a "Cast screen" item in the player menu
-my $MATERIAL_ACTION;
+# Material Skin (if installed) gets a "Cast screen: on" or "Cast screen: off" item in the player menu.
+# Two items, each listing the players in that state; Material reads them once per page load, so after
+# a click the script moves the player to the other item in the page itself (Material redraws on that).
+my %MATERIAL_ACTION;    # on|off => action
+
+use constant MATERIAL_SCRIPT => 'lmsCommand("$ID",["castnowplaying","toggle"]).then(({data})=>{'
+	. 'let r=data&&data.result;if(!r){return;}'
+	. 'if(r.message){bus.$emit("showMessage",r.message);}'
+	. 'let l=(typeof pluginCustomActions!="undefined"&&pluginCustomActions)?pluginCustomActions.players:undefined;'
+	. 'if(l){l.forEach(a=>{if(a.castnp&&a.players){let i=a.players.indexOf("$ID");if(i>=0){a.players.splice(i,1);}'
+	. 'if((a.castnp=="on")==(r.on==1)){a.players.push("$ID");}}});}})';
 
 sub postinitPlugin {
 	return unless Slim::Utils::PluginManager->isEnabled('Plugins::MaterialSkin::Plugin');
 	my $register = Plugins::MaterialSkin::Plugin->can('registerCustomAction') or return;
-	$MATERIAL_ACTION = {
-		title   => Slim::Utils::Strings::string('PLUGIN_CASTNOWPLAYING_TOGGLE'),
-		icon    => 'cast',
-		players => [],
-		script  => 'lmsCommand("$ID",["castnowplaying","toggle"]).then(({data})=>{'
-		         . 'if(data&&data.result&&data.result.message){bus.$emit("showMessage",data.result.message);}})',
-	};
+	for my $state ('on', 'off') {
+		$MATERIAL_ACTION{$state} = {
+			title   => Slim::Utils::Strings::string($state eq 'on' ? 'PLUGIN_CASTNOWPLAYING_MENU_ON' : 'PLUGIN_CASTNOWPLAYING_MENU_OFF'),
+			icon    => $state eq 'on' ? 'cast_connected' : 'cast',
+			castnp  => $state,
+			players => [],
+			script  => MATERIAL_SCRIPT,
+		};
+	}
 	_material_players();
-	eval { $register->('players', $MATERIAL_ACTION); 1 } or $log->warn("Material menu: $@");
+	for my $state ('on', 'off') {
+		eval { $register->('players', $MATERIAL_ACTION{$state}); 1 } or $log->warn("Material menu: $@");
+	}
 }
 
-# the menu item is shown only for players that some Cast screen follows (in place, Material keeps the ref)
+# a player followed by at least one screen is "on" when any of its screens is on, otherwise "off"
+# (lists are changed in place, Material keeps the refs)
 sub _material_players {
-	return unless $MATERIAL_ACTION;
+	return unless %MATERIAL_ACTION;
 	my $conf = $prefs->get('devices') || {};
-	my %p = map { $_->{player} => 1 } grep { $_->{player} } values %$conf;
-	@{ $MATERIAL_ACTION->{players} } = sort keys %p;
+	my (%followed, %on);
+	for my $c (values %$conf) {
+		next unless $c->{player};
+		$followed{ $c->{player} } = 1;
+		$on{ $c->{player} } = 1 if $c->{enabled};
+	}
+	@{ $MATERIAL_ACTION{on}{players} }  = sort grep { $on{$_} } keys %followed;
+	@{ $MATERIAL_ACTION{off}{players} } = sort grep { !$on{$_} } keys %followed;
 }
 
 sub _cliToggle {
