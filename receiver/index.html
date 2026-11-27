@@ -182,20 +182,21 @@ function drawWave(c, w, key, pos, col) {
   if (!W || !H) return;
   const cs = getComputedStyle(c), pl = parseFloat(cs.paddingLeft), pt = parseFloat(cs.paddingTop);
   const iw = W - pl - parseFloat(cs.paddingRight), ih = H - pt - parseFloat(cs.paddingBottom);
-  const bars = Math.max(40, Math.floor(iw / 4));
+  const bars = Math.max(40, Math.floor(iw / 5));
   const played = st.duration ? Math.round(bars * pos / st.duration) : 0;
   if (!changed(c.id, [key, W, H, played, st.playing].join('|'))) return;
   if (c.width !== W) c.width = W;
   if (c.height !== H) c.height = H;
-  const g = c.getContext('2d'), n = w.length, max = Math.max(...w) || 1, step = iw / bars, bw = Math.max(1, Math.round(step * .45));
+  const g = c.getContext('2d'), n = w.length, max = Math.max(...w) || 1, step = iw / bars, bw = Math.max(1, Math.round(step * .6));
   g.clearRect(0, 0, W, H);
   for (let i = 0; i < bars; i++) {
     const a = Math.floor(i * n / bars), b = Math.max(a + 1, Math.floor((i + 1) * n / bars));
     let v = 0;
     for (let j = a; j < b && j < n; j++) v = Math.max(v, w[j]);
-    const h = Math.max(2, Math.round(ih * Math.min(1, v / max)));
+    const h = Math.max(3, Math.round(ih * Math.min(1, v / max)));
+    const x = Math.round(pl + i * step), y = Math.round(pt + (ih - h) / 2);
     g.fillStyle = i < played ? (st.playing ? col[0] : col[3] || col[0]) : st.playing ? col[1] : col[2];
-    g.fillRect(Math.round(pl + i * step), Math.round(pt + (ih - h) / 2), bw, h);
+    if (g.roundRect) { g.beginPath(); g.roundRect(x, y, bw, h, bw / 2); g.fill(); } else g.fillRect(x, y, bw, h);
   }
 }
 const CD_WAVE = ['#62e6f5', 'rgba(98,230,245,.28)', 'rgba(98,230,245,.18)'];

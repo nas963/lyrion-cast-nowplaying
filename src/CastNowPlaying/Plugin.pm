@@ -236,10 +236,12 @@ sub _onEvent {
 
 sub _onWave {
 	my $request = shift;
-	my $url = $request->getRequest(2) // return;
+	# url je parametar obavestenja (dispatch ['waveform', 'ready', '_url']), nije deo komande
+	my $url = $request->getParam('_url') // return;
 	for my $client (grep { defined } map { Slim::Player::Client::getClient($_) } _followed_players()) {
 		my $song = eval { Slim::Player::Playlist::song($client, Slim::Player::Source::playingSongIndex($client)) };
 		next unless $song && eval { $song->url } && $song->url eq $url;
+		main::INFOLOG && $log->is_info && $log->info('talas spreman: ' . $client->name);
 		Slim::Utils::Timers::killTimers($client, \&_update);
 		Slim::Utils::Timers::setTimer($client, Time::HiRes::time() + DEBOUNCE, \&_update);
 	}
