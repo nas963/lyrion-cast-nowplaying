@@ -242,7 +242,9 @@ function setVu(cfg) {
 // nivoi stizu u paketima; svaki frame nosi vreme servisa (a[4]), pa ga vu-draw prikazuje sa stalnim kasnjenjem
 function onVu(m) {
   if (!vu || !Array.isArray(m.f)) return;
-  m.f.forEach(a => vu.push({ p: [a[0] / 1000, a[1] / 1000], r: [a[2] / 1000, a[3] / 1000], on: 1, t: +a[4] || 0 }));
+  const x = Array.isArray(m.x) ? m.x : [];
+  m.f.forEach((a, i) => vu.push(Object.assign({ p: [a[0] / 1000, a[1] / 1000], r: [a[2] / 1000, a[3] / 1000], on: 1,
+    t: +a[4] || 0, rate: +m.rate || 0 }, x[i] || {})));
 }
 // merenje kasnjenja: receiver ga svakih 10 s javlja pluginu (castnowplaying vustat)
 setInterval(() => {

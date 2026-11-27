@@ -55,6 +55,12 @@ $cfg->{tv} = 'bars';
 is_deeply(Plugins::CastNowPlaying::VU::_frame({ t => 1700000000123, p => [0.5, 0.25], r => [0.1234, 0.0006], on => 1 }), [500, 250, 123, 1, 1700000000123], 'frame -> hiljaditi delovi + vreme');
 is_deeply(Plugins::CastNowPlaying::VU::_frame({ t => 5, p => [0.5, 0.5], r => [0.1, 0.1], on => 0 }), [0, 0, 0, 0, 5], 'plejer ne svira: nule');
 
+is(Plugins::CastNowPlaying::VU::_mode('spectrum'), '&mode=spectrum', 'spektar se trazi od servisa');
+is(Plugins::CastNowPlaying::VU::_mode('needles'), '', 'kazaljke: bez dodatnih podataka');
+my $thin = Plugins::CastNowPlaying::VU::_thin([[0 .. 199], [map { -$_ } 0 .. 199]]);
+is(scalar @{ $thin->[0] }, 150, 'osciloskop proredjen na 150 tacaka');
+is($thin->[1][149], -198, 'proredjivanje uzima tacke ravnomerno');
+
 # slanje: samo ekranu koji prikazuje plejer, i ne kad se slanje zaglavilo
 my @sent;
 {

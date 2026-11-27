@@ -2,7 +2,8 @@
  * VU meter drawing, shared by Material Skin (plugin VUMeter) and the Cast receiver (lyrion-cast-nowplaying,
  * receiver/vu-draw.js is a copy of this file: keep them the same).
  *
- *   var m = VUDraw.create(canvas, { style: "needles" | "bars", ref: "auto" | -14, delay: 60, accent: "#e0835a" });
+ *   var m = VUDraw.create(canvas, { style: "needles" | "bars" | "scope" | "spectrum", ref: "auto" | -14, delay: 60,
+ *                                   accent: "#e0835a" });
  *   m.push(frame)      frame from the VU service: { t: ms, p: [peakL, peakR], r: [rmsL, rmsR], on: 0|1 } (0..1 of
  *                      full scale). t is when the service took the levels (its wall clock). The frame is shown at
  *                      t + (90th percentile of the travel time in the last 8 s) + `delay`: the same distance to the music
@@ -18,6 +19,10 @@
  * falls over about a minute), so loud passages sit around 0 VU on loud and quiet masters alike and the
  * dynamics within a piece still show.
  * Bars: LED-style bars -60..0 dBFS, RMS with fast attack and slow release, peak hold mark.
+ * Scope: L and R over 20 ms (2 ms/div), triggered on a rising zero crossing of L (service, frame.sc), with
+ * automatic vertical gain shown as a readout. Spectrum: 48 log bands 20 Hz..20 kHz in dBFS (service,
+ * frame.sp, FFT), -80..0 dB, fast attack, slow fall, peak caps. Both need the service to be asked for them
+ * (mode=scope / mode=spectrum, see VUDraw.mode()).
  * Frames are shown `delay` ms after they arrive (the DAC plays them a little later than they are sent).
  */
 (function (root) {
@@ -116,6 +121,8 @@
         if (this.queue.length) { this.lastFrame = now; }
         var on = !!this.cur.on;
         if (on) { this.follow(Math.max(+this.cur.r[0] || 0, +this.cur.r[1] || 0), dt); }
+        if ("spectrum" == this.o.style) { this.updateSpectrum(on ? this.cur.sp : null, dt, now); }
+        if ("scope" == this.o.style) { this.updateScope(on ? this.cur.sc : null, dt); }
         for (var i = 0; i < 2; ++i) { this.update(this.ch[i], on ? +this.cur.r[i] || 0 : 0, on ? +this.cur.p[i] || 0 : 0, dt, now); }
         this.draw(now);
     };
@@ -155,6 +162,37 @@
         else if (now - c.peakAt > 1500) { c.peak = Math.max(pd, c.peak - 20 * dt); }
     };
 
+    // spectrum: per band attack at once, release 30 dB/s; peak caps hold 1.2 s, then fall 20 dB/s
+    Meter.prototype.updateSpectrum = function (sp, dt, now) {
+        var s = this.spec;
+        var n = sp && sp.length ? sp.length : (s ? s.v.length : 0);
+        if (!n) { return; }
+        if (!s || s.v.length != n) { s = this.spec = { v: [], pk: [], at: [] }; for (var i = 0; i < n; ++i) { s.v.push(-100); s.pk.push(-100); s.at.push(0); } }
+        for (var j = 0; j < n; ++j) {
+            var d = sp ? +sp[j] : -100;
+            s.v[j] = d > s.v[j] ? d : Math.max(d, s.v[j] - 30 * dt);
+            if (s.v[j] >= s.pk[j]) { s.pk[j] = s.v[j]; s.at[j] = now; }
+            else if (now - s.at[j] > 1200) { s.pk[j] = Math.max(s.v[j], s.pk[j] - 20 * dt); }
+        }
+        if (this.cur && this.cur.rate) { this.rate = +this.cur.rate; }
+    };
+
+    // scope: automatic gain from the peak of the picture (up fast, down over ~4 s), in steps of 2x
+    Meter.prototype.updateScope = function (sc, dt) {
+        if (sc && sc[0]) { this.trace = sc; }
+        else if (!sc) { this.trace = null; }
+        var pk = 0;
+        if (this.trace) {
+            for (var c = 0; c < 2; ++c) { for (var i = 0; i < this.trace[c].length; ++i) { pk = Math.max(pk, Math.abs(this.trace[c][i])); } }
+        }
+        var env = this.scopeEnv || 0;
+        env = pk > env ? pk : env + (pk - env) * (1 - Math.exp(-dt / 4));
+        this.scopeEnv = env;
+        var gain = 1;
+        while (gain < 64 && env * gain * 2 < 900) { gain *= 2; }
+        this.gain = gain;
+    };
+
     Meter.prototype.size = function () {
         var c = this.c, W = c.clientWidth, H = c.clientHeight, r = root.devicePixelRatio || 1;
         if (!W || !H) { return null; }
@@ -171,7 +209,10 @@
         var s = this.size();
         if (!s) { return; }
         s.g.clearRect(0, 0, s.W, s.H);
-        if ("bars" == this.o.style) { this.drawBars(s, now); } else { this.drawNeedles(s, now); }
+        if ("bars" == this.o.style) { this.drawBars(s, now); }
+        else if ("scope" == this.o.style) { this.drawScope(s); }
+        else if ("spectrum" == this.o.style) { this.drawSpectrum(s); }
+        else { this.drawNeedles(s, now); }
     };
 
     function rrect(g, x, y, w, h, r) {
@@ -294,7 +335,128 @@
         }
     };
 
+    function panel(g, x, y, w, h) {
+        rrect(g, x, y, w, h, Math.min(10, h * 0.06));
+        g.fillStyle = "rgba(10,10,12,0.55)";
+        g.fill();
+        g.strokeStyle = "rgba(255,255,255,0.14)";
+        g.lineWidth = 1;
+        g.stroke();
+    }
+
+    Meter.prototype.drawScope = function (s) {
+        var g = s.g, W = s.W, H = s.H, fs = Math.max(9, Math.min(18, Math.round(H * 0.075)));
+        panel(g, 0.5, 0.5, W - 1, H - 1);
+        var px = Math.round(fs * 0.8), top = Math.round(fs * 0.6), bottom = Math.round(fs * 1.9);
+        var x0 = px, y0 = top, w = W - 2 * px, h = H - top - bottom, cy = y0 + h / 2;
+        // graticule 10 x 8 divisions, centre lines with small ticks
+        g.lineWidth = 1;
+        g.strokeStyle = "rgba(255,255,255,0.09)";
+        g.beginPath();
+        for (var i = 0; i <= 10; ++i) { var gx = Math.round(x0 + i * w / 10) + 0.5; g.moveTo(gx, y0); g.lineTo(gx, y0 + h); }
+        for (var j = 0; j <= 8; ++j) { var gy = Math.round(y0 + j * h / 8) + 0.5; g.moveTo(x0, gy); g.lineTo(x0 + w, gy); }
+        g.stroke();
+        g.strokeStyle = "rgba(255,255,255,0.22)";
+        g.beginPath();
+        g.moveTo(x0, Math.round(cy) + 0.5); g.lineTo(x0 + w, Math.round(cy) + 0.5);
+        g.moveTo(Math.round(x0 + w / 2) + 0.5, y0); g.lineTo(Math.round(x0 + w / 2) + 0.5, y0 + h);
+        for (var k = 0; k <= 50; ++k) {
+            var tx = Math.round(x0 + k * w / 50) + 0.5, ty = Math.round(y0 + k * h / 40) + 0.5;
+            g.moveTo(tx, cy - 3); g.lineTo(tx, cy + 3);
+            if (k <= 40) { g.moveTo(x0 + w / 2 - 3, ty); g.lineTo(x0 + w / 2 + 3, ty); }
+        }
+        g.stroke();
+        var cols = [this.o.accent, "rgba(255,255,255,0.8)"], tr = this.trace, gain = this.gain || 1;
+        g.save();
+        g.beginPath(); g.rect(x0, y0, w, h); g.clip();
+        g.lineJoin = "round";
+        for (var c = 1; c >= 0; --c) {
+            g.strokeStyle = cols[c];
+            g.lineWidth = Math.max(1.2, h * 0.008);
+            g.shadowColor = cols[c];
+            g.shadowBlur = 4;
+            g.beginPath();
+            var n = tr && tr[c] ? tr[c].length : 0;
+            if (!n) { g.moveTo(x0, cy); g.lineTo(x0 + w, cy); }
+            for (var p = 0; p < n; ++p) {
+                var x = x0 + p * w / (n - 1), y = cy - tr[c][p] / 1000 * gain * h / 2;
+                if (p) { g.lineTo(x, y); } else { g.moveTo(x, y); }
+            }
+            g.stroke();
+        }
+        g.restore();
+        // readouts
+        g.shadowBlur = 0;
+        g.font = "500 " + fs + "px Roboto, Arial, sans-serif";
+        g.textBaseline = "middle";
+        var ry = H - bottom / 2;
+        g.textAlign = "left";
+        g.fillStyle = cols[0]; g.fillText("L", x0, ry);
+        g.fillStyle = cols[1]; g.fillText("R", x0 + fs * 1.2, ry);
+        g.fillStyle = "rgba(255,255,255,0.6)";
+        g.fillText("2 ms/div", x0 + fs * 3, ry);
+        g.textAlign = "right";
+        // vertical: one division = 1/4 of full scale / gain
+        var dbdiv = 20 * Math.log10(0.25 / gain);
+        g.fillText((gain > 1 ? "\u00d7" + gain + "  " : "") + dbdiv.toFixed(0) + " dBFS/div", x0 + w, ry);
+    };
+
+    var SPEC_FREQS = [[50, "50"], [100, "100"], [200, "200"], [500, "500"], [1000, "1k"], [2000, "2k"], [5000, "5k"], [10000, "10k"], [20000, "20k"]];
+
+    Meter.prototype.drawSpectrum = function (s) {
+        var g = s.g, W = s.W, H = s.H, fs = Math.max(9, Math.min(18, Math.round(H * 0.075)));
+        panel(g, 0.5, 0.5, W - 1, H - 1);
+        var left = Math.round(fs * 2.4), right = Math.round(fs * 0.8), top = Math.round(fs * 0.7), bottom = Math.round(fs * 1.9);
+        var x0 = left, y0 = top, w = W - left - right, h = H - top - bottom, floor = -80;
+        function yOf(d) { return y0 + h * Math.min(1, Math.max(0, d / floor)); }
+        g.font = "500 " + fs + "px Roboto, Arial, sans-serif";
+        g.textBaseline = "middle";
+        g.lineWidth = 1;
+        for (var d = 0; d >= floor; d -= 10) {
+            var yy = Math.round(yOf(d)) + 0.5;
+            g.strokeStyle = d == 0 ? "rgba(255,75,58,0.35)" : "rgba(255,255,255,0.08)";
+            g.beginPath(); g.moveTo(x0, yy); g.lineTo(x0 + w, yy); g.stroke();
+            if (d % 20 == 0) {
+                g.textAlign = "right";
+                g.fillStyle = "rgba(255,255,255,0.55)";
+                g.fillText(String(d), x0 - fs * 0.4, yy);
+            }
+        }
+        var sp = this.spec, rate = this.rate || 44100, topF = Math.min(20000, rate / 2 * 0.95);
+        function xOf(f) { return x0 + w * Math.log(f / 20) / Math.log(topF / 20); }
+        g.textAlign = "center";
+        g.fillStyle = "rgba(255,255,255,0.55)";
+        for (var k = 0; k < SPEC_FREQS.length; ++k) {
+            var f = SPEC_FREQS[k][0];
+            if (f > topF * 1.01) { continue; }
+            var fx = xOf(f);
+            g.strokeStyle = "rgba(255,255,255,0.08)";
+            g.beginPath(); g.moveTo(Math.round(fx) + 0.5, y0); g.lineTo(Math.round(fx) + 0.5, y0 + h); g.stroke();
+            if (w > 260 || k % 2 == 0) { g.fillText(SPEC_FREQS[k][1], Math.min(x0 + w - fs, Math.max(x0 + fs, fx)), H - bottom / 2); }
+        }
+        if (!sp) { return; }
+        var n = sp.v.length, bw = w / n, gap = Math.max(1, Math.round(bw * 0.2));
+        for (var i = 0; i < n; ++i) {
+            var x = x0 + i * bw, v = sp.v[i], yv = yOf(v);
+            if (v > floor) {
+                var grad = g.createLinearGradient(0, y0 + h, 0, y0);
+                grad.addColorStop(0, this.o.accent);
+                grad.addColorStop(0.75, this.o.accent);
+                grad.addColorStop(0.9, "#f5c542");
+                grad.addColorStop(1, "#ff4b3a");
+                g.fillStyle = grad;
+                g.fillRect(Math.round(x + gap / 2), yv, Math.max(1, Math.round(bw - gap)), y0 + h - yv);
+            }
+            if (sp.pk[i] > floor) {
+                g.fillStyle = "rgba(255,255,255,0.85)";
+                g.fillRect(Math.round(x + gap / 2), Math.round(yOf(sp.pk[i])) - 1, Math.max(1, Math.round(bw - gap)), 2);
+            }
+        }
+    };
+
     root.VUDraw = {
+        // what to ask the service for (?mode=): the scope and the spectrum need extra data
+        mode: function (style) { return "scope" == style || "spectrum" == style ? style : ""; },
         create: function (canvas, opts) { return new Meter(canvas, opts); },
         db: db,
         vuPos: vuPos,

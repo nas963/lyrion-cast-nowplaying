@@ -121,6 +121,11 @@ sub _poll {
 			$r->{since} = $d->{seq} if defined $d->{seq};
 			if (@f) {
 				my $msg = { type => 'vu', fps => ($d->{fps} // 30) + 0, f => [ map { _frame($_) } @f ] };
+				# osciloskop / spektar: dodatni podaci uz svaki frame (x), osciloskop proredjen na SCOPE_PTS tacaka
+				if (grep { $_->{sp} || $_->{sc} } @f) {
+					$msg->{x} = [ map { $_->{sp} ? { sp => $_->{sp} } : $_->{sc} ? { sc => _thin($_->{sc}) } : {} } @f ];
+					$msg->{rate} = ($f[-1]{rate} // 0) + 0;
+				}
 				$_->send_vu($msg) for grep { $_->status eq 'showing' } $r->{devices}->();
 			}
 			_schedule($r, POLL);
@@ -132,7 +137,24 @@ sub _poll {
 			_schedule($r, 1);
 		},
 		{ timeout => 2 },
-	)->get("http://127.0.0.1:$c->{port}/levels?player=$mac&since=" . ($r->{since} // 0));
+	)->get("http://127.0.0.1:$c->{port}/levels?player=$mac&since=" . ($r->{since} // 0) . _mode($c->{tv}));
+}
+
+use constant SCOPE_PTS => 150;
+
+sub _mode {
+	my ($style) = @_;
+	return $style eq 'scope' || $style eq 'spectrum' ? "&mode=$style" : '';
+}
+
+# [[L...], [R...]] -> SCOPE_PTS tacaka po kanalu (manje podataka preko Cast-a)
+sub _thin {
+	my ($sc) = @_;
+	return [ map {
+		my $c = $_ || [];
+		my $n = @$c;
+		$n <= SCOPE_PTS ? $c : [ map { $c->[ int($_ * $n / SCOPE_PTS) ] } 0 .. SCOPE_PTS - 1 ];
+	} @$sc[0, 1] ];
 }
 
 # frame servisa -> [peakL, peakR, rmsL, rmsR, t] u hiljaditim delovima pune skale (0 kad plejer ne svira);
