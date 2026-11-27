@@ -23,8 +23,10 @@ When the player plays an audio CD from the AudioCD plugin (`audiocd://` tracks),
 takes the place of the progress bar: track number and elapsed time in segment digits, a progress bar,
 the disc's track list and the time on the disc. Cover and text stay as on the normal screen.
 
-The screen is only taken when it is free: if another app is running on the TV, or the TV is off or
-on another input, nothing is shown until playback is started again.
+The screen is only taken when it is free: if someone casts another app to the TV, or the TV is off or
+on another input, nothing is shown until playback is started again. Android TV apps that only hold a
+media session in the background (reported as "AndroidNativeApp", e.g. a paused VLC) do not count.
+If the screen is closed on the TV while music plays, it comes back when playback is started again.
 
 ## Layout
 

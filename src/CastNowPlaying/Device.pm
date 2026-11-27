@@ -324,7 +324,10 @@ sub _on_status {
 	my ($self, $st) = @_;
 	my @apps = @{ $st->{applications} || [] };
 	my ($ours) = grep { ($_->{appId} // '') eq APP_ID } @apps;
-	my @others = grep { ($_->{appId} // '') ne APP_ID && !$_->{isIdleScreen} } @apps;
+	# Android TV lists the native app that holds a media session as "AndroidNativeApp", even when it
+	# runs in the background (e.g. VLC paused days ago while the cable TV app is on screen): that does
+	# not mean the screen is taken. Only another Cast app (someone casting to the TV) does.
+	my @others = grep { my $id = $_->{appId} // ''; $id ne APP_ID && $id ne 'AndroidNativeApp' && !$_->{isIdleScreen} } @apps;
 
 	if ($ours) {
 		$self->{launching} = 0;
@@ -346,7 +349,11 @@ sub _on_status {
 	if ($self->{transport}) {
 		main::INFOLOG && $log->is_info && $log->info("$self->{name}: receiver closed" . (@others ? " by $others[0]{displayName}" : ''));
 		$self->{transport} = $self->{session} = undef;
-		$self->{yielded} = 1 if @others;
+		# closed while we wanted it shown (another app, or the user opened something on the TV):
+		# do not take the screen back until playback is started again. A TV that went to standby
+		# or another input gets the screen back when it returns (handled below).
+		my $away = $st->{isStandBy} || (defined $st->{isActiveInput} && !$st->{isActiveInput});
+		$self->{yielded} = 1 if @others || ($self->{want} && !$away);
 	}
 	if (@others) {
 		$self->{status} = 'screen busy: ' . ($others[0]{displayName} // $others[0]{appId});
