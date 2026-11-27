@@ -435,9 +435,12 @@
             if (w > 260 || k % 2 == 0) { g.fillText(SPEC_FREQS[k][1], Math.min(x0 + w - fs, Math.max(x0 + fs, fx)), H - bottom / 2); }
         }
         if (!sp) { return; }
-        var n = sp.v.length, bw = w / n, gap = Math.max(1, Math.round(bw * 0.2));
+        // band edges on whole pixels, gap at least 2 px: rounding the start and the width separately
+        // left some neighbours touching (TV boxes render at 720p and scale up)
+        var n = sp.v.length, bw = w / n, gap = Math.max(2, Math.round(bw * 0.22));
         for (var i = 0; i < n; ++i) {
-            var x = x0 + i * bw, v = sp.v[i], yv = yOf(v);
+            var xa = Math.round(x0 + i * bw), xb = Math.round(x0 + (i + 1) * bw) - gap;
+            var x = xa, wb = Math.max(1, xb - xa), v = sp.v[i], yv = yOf(v);
             if (v > floor) {
                 var grad = g.createLinearGradient(0, y0 + h, 0, y0);
                 grad.addColorStop(0, this.o.accent);
@@ -445,11 +448,11 @@
                 grad.addColorStop(0.9, "#f5c542");
                 grad.addColorStop(1, "#ff4b3a");
                 g.fillStyle = grad;
-                g.fillRect(Math.round(x + gap / 2), yv, Math.max(1, Math.round(bw - gap)), y0 + h - yv);
+                g.fillRect(x, yv, wb, y0 + h - yv);
             }
             if (sp.pk[i] > floor) {
                 g.fillStyle = "rgba(255,255,255,0.85)";
-                g.fillRect(Math.round(x + gap / 2), Math.round(yOf(sp.pk[i])) - 1, Math.max(1, Math.round(bw - gap)), 2);
+                g.fillRect(x, Math.round(yOf(sp.pk[i])) - 1, wb, 2);
             }
         }
     };
