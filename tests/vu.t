@@ -52,8 +52,8 @@ $cfg->{tv} = 'off';
 is(Plugins::CastNowPlaying::VU::info('02:7d:f7:86:ee:bb'), undef, 'VU za TV iskljucen');
 $cfg->{tv} = 'bars';
 
-is_deeply(Plugins::CastNowPlaying::VU::_frame({ p => [0.5, 0.25], r => [0.1234, 0.0006], on => 1 }), [500, 250, 123, 1], 'frame -> hiljaditi delovi');
-is_deeply(Plugins::CastNowPlaying::VU::_frame({ p => [0.5, 0.5], r => [0.1, 0.1], on => 0 }), [0, 0, 0, 0], 'plejer ne svira: nule');
+is_deeply(Plugins::CastNowPlaying::VU::_frame({ t => 1700000000123, p => [0.5, 0.25], r => [0.1234, 0.0006], on => 1 }), [500, 250, 123, 1, 1700000000123], 'frame -> hiljaditi delovi + vreme');
+is_deeply(Plugins::CastNowPlaying::VU::_frame({ t => 5, p => [0.5, 0.5], r => [0.1, 0.1], on => 0 }), [0, 0, 0, 0, 5], 'plejer ne svira: nule');
 
 # slanje: samo ekranu koji prikazuje plejer, i ne kad se slanje zaglavilo
 my @sent;

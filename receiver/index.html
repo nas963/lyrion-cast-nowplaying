@@ -109,10 +109,14 @@
 </div>
 <div id="paused">PAUSED</div>
 <div id="idle">Lyrion Music Server</div>
-<script src="vu-draw.js"></script>
+<script src="vu-draw.js?v=0.6.2"></script>
 <script>
 'use strict';
 const NS = 'urn:x-cast:lms.nowplaying';
+// verzija receiver-a; plugin salje svoju (rv): kad se razlikuju, stranica se ucita ponovo (Chromecast inace
+// drzi staru stranicu dok se ekran ne pokrene iznova)
+const RV = '0.6.2';
+let sender = null;
 const $ = id => document.getElementById(id);
 let st = { duration: 0, elapsed: 0, at: 0, playing: false };
 let curCover = null, bgFront = 'bg';
@@ -235,14 +239,25 @@ function setVu(cfg) {
   if (!vu) vu = VUDraw.create($('vu'), o); else vu.set(o);
   vuStyle = cfg.style;
 }
+// nivoi stizu u paketima; svaki frame nosi vreme servisa (a[4]), pa ga vu-draw prikazuje sa stalnim kasnjenjem
 function onVu(m) {
   if (!vu || !Array.isArray(m.f)) return;
-  const step = 1000 / (+m.fps || 30), now = Date.now();
-  m.f.forEach((a, i) => vu.push({ p: [a[0] / 1000, a[1] / 1000], r: [a[2] / 1000, a[3] / 1000], on: 1 }, now + i * step));
+  m.f.forEach(a => vu.push({ p: [a[0] / 1000, a[1] / 1000], r: [a[2] / 1000, a[3] / 1000], on: 1, t: +a[4] || 0 }));
+}
+// merenje kasnjenja: receiver ga svakih 10 s javlja pluginu (castnowplaying vustat)
+setInterval(() => {
+  if (!vu || !sender || !window.castCtx) return;
+  try { window.castCtx.sendCustomMessage(NS, sender, { type: 'vu-stat', rv: RV, ...vu.stats() }); } catch (e) {}
+}, 10000);
+function checkVersion(rv) {
+  if (!rv || rv === RV) return;
+  try { if (sessionStorage.getItem('rvTried') === rv) return; sessionStorage.setItem('rvTried', rv); } catch (e) {}
+  location.replace(location.pathname + '?rv=' + encodeURIComponent(rv));
 }
 
 function render(m) {
   if (m.type === 'vu') { onVu(m); return; }
+  checkVersion(m.rv);
   if (m.type === 'idle') { document.body.className = 'idle'; if (vu) { vu.stop(); vu = null; } return; }
   document.body.classList.remove('idle');
   setText($('title'), m.trackNum ? String(m.trackNum).padStart(2, '0') + ' •' : '', m.title || '');
@@ -290,7 +305,9 @@ setInterval(() => { drift = (drift + 1) % 4; const d = [[0,0],[6,4],[0,8],[-6,4]
 
 if (window.cast && cast.framework && /CrKey|Android|AFT|Web0S|Tizen/i.test(navigator.userAgent)) {
   const ctx = cast.framework.CastReceiverContext.getInstance();
+  window.castCtx = ctx;
   ctx.addCustomMessageListener(NS, ev => {
+    if (ev.senderId) sender = ev.senderId;
     let m = ev.data; if (typeof m === 'string') { try { m = JSON.parse(m); } catch (e) { return; } }
     render(m || {});
   });
@@ -310,7 +327,7 @@ if (window.cast && cast.framework && /CrKey|Android|AFT|Web0S|Tizen/i.test(navig
         t += 1 / 30;
         const beat = Math.pow(Math.max(0, Math.sin(t * Math.PI * 2)), 8), env = 0.16 + 0.1 * Math.sin(t / 3) + 0.12 * beat;
         const r = [env * (1 + 0.15 * Math.sin(t * 1.7)), env * (1 + 0.15 * Math.cos(t * 1.3))];
-        f.push([...r.map(v => Math.round(1000 * Math.min(1, v * (2.2 + 1.5 * beat)))), ...r.map(v => Math.round(1000 * v))]);
+        f.push([...r.map(v => Math.round(1000 * Math.min(1, v * (2.2 + 1.5 * beat)))), ...r.map(v => Math.round(1000 * v)), Date.now() - 100 + k * 33]);
       }
       render({ type: 'vu', fps: 30, f });
     }, 100), 300);

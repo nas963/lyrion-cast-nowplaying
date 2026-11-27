@@ -19,7 +19,7 @@ use Slim::Networking::SimpleAsyncHTTP;
 use Slim::Utils::Log;
 use Slim::Utils::Timers;
 
-use constant POLL          => 0.1;   # s izmedju dva zahteva
+use constant POLL          => 0.05;  # s izmedju dva zahteva
 use constant PLAYERS_EVERY => 30;    # s, osvezavanje spiska plejera koje servis vidi
 use constant BACKOFF       => 30;    # s posle greske
 
@@ -135,11 +135,13 @@ sub _poll {
 	)->get("http://127.0.0.1:$c->{port}/levels?player=$mac&since=" . ($r->{since} // 0));
 }
 
-# frame servisa -> [peakL, peakR, rmsL, rmsR] u hiljaditim delovima pune skale (0 kad plejer ne svira)
+# frame servisa -> [peakL, peakR, rmsL, rmsR, t] u hiljaditim delovima pune skale (0 kad plejer ne svira);
+# t = vreme servisa (ms) kad su nivoi uzeti, receiver po njemu drzi stalno rastojanje do muzike
 sub _frame {
 	my ($f) = @_;
-	return [ 0, 0, 0, 0 ] unless $f->{on};
-	return [ map { int(($_ // 0) * 1000 + 0.5) } @{ $f->{p} || [] }[0, 1], @{ $f->{r} || [] }[0, 1] ];
+	my $t = ($f->{t} // 0) + 0;
+	return [ 0, 0, 0, 0, $t ] unless $f->{on};
+	return [ (map { int(($_ // 0) * 1000 + 0.5) } @{ $f->{p} || [] }[0, 1], @{ $f->{r} || [] }[0, 1]), $t ];
 }
 
 1;

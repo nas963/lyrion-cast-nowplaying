@@ -3,8 +3,12 @@
  * receiver/vu-draw.js is a copy of this file: keep them the same).
  *
  *   var m = VUDraw.create(canvas, { style: "needles" | "bars", ref: "auto" | -14, delay: 60, accent: "#e0835a" });
- *   m.push(frame[, t]) frame from the VU service: { p: [peakL, peakR], r: [rmsL, rmsR], on: 0|1 } (0..1 of full scale),
- *                      shown at time t (Date.now() ms, default now) plus `delay`
+ *   m.push(frame)      frame from the VU service: { t: ms, p: [peakL, peakR], r: [rmsL, rmsR], on: 0|1 } (0..1 of
+ *                      full scale). t is when the service took the levels (its wall clock). The frame is shown at
+ *                      t + (90th percentile of the travel time in the last 8 s) + `delay`: the same distance to the music
+ *                      for every frame, whatever the path (SSE, Cast batches) and the clock difference to the server.
+ *                      A frame without t is shown on arrival + `delay`.
+ *   m.stats()          { lag: median travel time ms (incl. clock difference), min, max, base: the one used (90th pct), n }
  *   m.set({ ... })     change options
  *   m.stop()           stop drawing
  *
@@ -74,10 +78,28 @@
 
     Meter.prototype.stop = function () { this.running = false; };
 
-    // t: when to show it (ms, Date.now() clock; default now); frames stay in order
-    Meter.prototype.push = function (f, t) {
+    Meter.prototype.stats = function () {
+        var w = (this.travel || []).map(function (x) { return x[1]; }).sort(function (a, b) { return a - b; });
+        if (!w.length) { return { n: 0 }; }
+        return { n: w.length, lag: w[Math.floor(w.length / 2)], min: w[0], base: this.base, max: w[w.length - 1] };
+    };
+
+    Meter.prototype.push = function (f) {
         if (!f || !f.p || !f.r) { return; }
-        var q = this.queue, at = t || Date.now();
+        var now = Date.now(), q = this.queue, at = now;
+        if (f.t) {
+            // travel time (+ clock difference) of the last 8 s; its 90th percentile is the base for every
+            // frame, so nearly all frames are on time and the distance to the music stays the same
+            var d = now - f.t, w = this.travel || (this.travel = []);
+            w.push([now, d]);
+            while (w.length && now - w[0][0] > 8000) { w.shift(); }
+            if (!this.baseAt || now - this.baseAt > 500 || d > this.base + 400) {
+                var s = w.map(function (x) { return x[1]; }).sort(function (a, b) { return a - b; });
+                this.base = s[Math.min(s.length - 1, Math.floor(s.length * 0.9))];
+                this.baseAt = now;
+            }
+            at = f.t + this.base;
+        }
         if (q.length && q[q.length - 1].t > at) { at = q[q.length - 1].t; }
         q.push({ t: at, f: f });
         if (this.queue.length > 120) { this.queue.splice(0, this.queue.length - 120); }

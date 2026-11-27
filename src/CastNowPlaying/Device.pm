@@ -59,6 +59,7 @@ sub new {
 sub id     { $_[0]{id} }
 sub name   { $_[0]{name} }
 sub status { $_[0]{status} }
+sub vustat { $_[0]{vustat} }
 
 sub set_address {
 	my ($self, $ip, $port, $name) = @_;
@@ -305,6 +306,11 @@ sub _on_message {
 	if ($m->{ns} eq Plugins::CastNowPlaying::Proto::NS_CONN && $type eq 'CLOSE') {
 		if ($m->{src} eq 'receiver-0') { $self->_failed('device closed connection'); return }
 		if ($self->{transport} && $m->{src} eq $self->{transport}) { $self->{transport} = undef }
+		return;
+	}
+	# receiver javlja kasnjenje VU nivoa (lag, base, max u ms; castnowplaying vustat)
+	if ($m->{ns} eq Plugins::CastNowPlaying::Proto::NS_NP) {
+		$self->{vustat} = { %$d, at => time } if $type eq 'vu-stat';
 		return;
 	}
 	return unless $m->{ns} eq Plugins::CastNowPlaying::Proto::NS_RECEIVER;

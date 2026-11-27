@@ -64,6 +64,8 @@ sub initPlugin {
 
 	# castnowplaying toggle: turns the Cast screens that follow this player on or off
 	Slim::Control::Request::addDispatch([ 'castnowplaying', 'toggle' ], [ 1, 0, 0, \&_cliToggle ]);
+	# castnowplaying vustat: kasnjenje VU nivoa na svakom ekranu (kako ga receiver meri)
+	Slim::Control::Request::addDispatch([ 'castnowplaying', 'vustat' ], [ 0, 1, 0, \&_cliVuStat ]);
 }
 
 # Material Skin (if installed) gets a "Cast screen: on" or "Cast screen: off" item in the player menu.
@@ -124,6 +126,24 @@ sub _cliToggle {
 }
 
 # all screens following $mac go on if none of them is on, otherwise all go off; returns (on, names)
+sub _cliVuStat {
+	my $request = shift;
+	my @l;
+	for my $d (sort { $a->name cmp $b->name } values %DEV) {
+		my $s = $d->vustat or next;
+		push @l, { name => $d->name, age => time - ($s->{at} // 0), map { $_ => $s->{$_} } grep { defined $s->{$_} } qw(lag base max n rv) };
+	}
+	$request->addResult(screens => \@l);
+	$request->setStatusDone;
+}
+
+# verzija plugina (install.xml); receiver se ucitava ponovo kad je njegova drugacija
+my $RV;
+sub version {
+	$RV //= eval { Slim::Utils::PluginManager->dataForPlugin(__PACKAGE__)->{version} } // '';
+	return $RV;
+}
+
 sub toggle {
 	my $mac = shift;
 	my $conf = $prefs->get('devices') || {};
@@ -342,6 +362,9 @@ sub now_playing {
 		elapsed  => ($r->{time} // 0) + 0,
 		playing  => $mode eq 'play' ? JSON::PP::true() : JSON::PP::false(),
 	};
+	# razvojna kopija (0.0.0) ne trazi ponovno ucitavanje receiver-a
+	my $rv = version();
+	$msg->{rv} = $rv if $rv && $rv ne '0.0.0';
 	# audio CD: the receiver shows its CD-player screen when this is present
 	if (Plugins::CastNowPlaying::CD::parse_url($t->{url})) {
 		my $st = eval {

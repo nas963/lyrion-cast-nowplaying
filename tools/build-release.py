@@ -92,6 +92,14 @@ def main():
         '',
     ]
     (ROOT / 'repo.xml').write_bytes('\n'.join(lines).encode('utf-8'))
+    # receiver (GitHub Pages) carries the same version: the plugin sends its own (rv) and the receiver
+    # reloads itself when they differ
+    rec = ROOT / 'receiver' / 'index.html'
+    html, n1 = re.subn(r"const RV = '[^']*';", f"const RV = '{version}';", rec.read_text(encoding='utf-8'))
+    html, n2 = re.subn(r'vu-draw\.js\?v=[^"]*"', f'vu-draw.js?v={version}"', html)
+    if n1 != 1 or n2 != 1:
+        raise SystemExit('receiver/index.html: expected one RV and one vu-draw.js?v=')
+    rec.write_text(html, encoding='utf-8', newline='\n')
     print(f'{target}  sha1 {sha1}')
 
 
