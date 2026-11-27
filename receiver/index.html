@@ -37,43 +37,32 @@
   body.idle #stage, body.idle #bg, body.idle #bg2 { display: none; }
   body.idle #idle { display: flex; }
 
-  /* audio CD: cover and text on top, CD-player style display across the bottom */
-  #top { display: contents; }
+  /* audio CD: same cover and text; a CD-player style display takes the place of the progress bar */
   #lcd { display: none; }
-  body.cd #stage { flex-direction: column; align-items: stretch; gap: 3.5vh; }
-  body.cd #top { display: flex; flex: 1; min-height: 0; align-items: center; gap: 4vw; }
-  body.cd #art { height: 50vh; width: 50vh; }
-  body.cd #side { height: 50vh; }
-  body.cd #meta { text-align: left; gap: 2.4vh; }
-  body.cd #info { text-align: left; margin: 0; }
   body.cd #bar, body.cd #paused { display: none; }
-  body.cd #bg, body.cd #bg2 { filter: blur(60px) saturate(1.1) brightness(.28); }
-  body.cd #lcd { display: block; flex: none; padding: 2.6vh 2.4vw 2.4vh; color: #62e6f5; background: #070d10;
+  body.cd #lcd { display: block; flex: none; padding: 2.2vh 2.2vh 1.8vh; color: #62e6f5; background: #070d10;
     border: .25vh solid #26343a; border-radius: 1.4vh; box-shadow: 0 1.5vh 5vh rgba(0,0,0,.6), inset 0 0 6vh rgba(98,230,245,.05); }
   .row { display: flex; align-items: flex-end; }
-  .lab { font-size: 1.9vh; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 1.2vh; opacity: .85; white-space: nowrap; }
-  .dg { display: flex; height: 13vh; transform: skewX(-5deg); transform-origin: bottom; }
-  .dg svg { height: 100%; width: auto; margin-right: 1vh; overflow: visible; display: block; filter: drop-shadow(0 0 .9vh rgba(98,230,245,.45)); }
+  .lab { font-size: 1.6vh; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 1vh; opacity: .85; white-space: nowrap; }
+  .dg { display: flex; height: 9vh; transform: skewX(-5deg); transform-origin: bottom; }
+  .dg svg { height: 100%; width: auto; margin-right: .8vh; overflow: visible; display: block; filter: drop-shadow(0 0 .8vh rgba(98,230,245,.45)); }
   .dg svg:last-child { margin-right: 0; }
   .dg polygon, .dg rect { fill: #62e6f5; opacity: .07; }
   .dg .on { opacity: 1; }
-  #cmode { width: 7vh; height: 7vh; margin: 0 0 3vh 3.4vw; }
+  #cmode { width: 5vh; height: 5vh; margin: 0 0 2vh 2.4vh; }
   #cmode svg { width: 100%; height: 100%; fill: currentColor; display: none; }
   #cmode[data-m="play"] .p, #cmode[data-m="pause"] .u, #cmode[data-m="stop"] .s { display: block; }
-  #ctime { margin: 0 auto; }
-  .small { text-align: right; min-width: 22vh; }
-  .small .dg { height: 7.2vh; justify-content: flex-end; }
-  .small .dg svg { margin-right: .6vh; }
-  .small + .small { margin-left: 2.6vw; }
-  #cprog { display: flex; margin: 2.4vh 0 2vh; height: 1.5vh; }
-  #cprog i { flex: 1; margin-right: .35vh; background: currentColor; opacity: .1; transform: skewX(-12deg); }
+  #ctime { margin-left: auto; text-align: right; }
+  #ctime .dg { justify-content: flex-end; }
+  #cprog { display: flex; margin: 2vh 0 1.6vh; height: 1.2vh; }
+  #cprog i { flex: 1; margin-right: .3vh; background: currentColor; opacity: .1; transform: skewX(-12deg); }
   #cprog i.on { opacity: 1; }
-  #cfoot { display: flex; align-items: center; justify-content: space-between; font-size: 2.4vh; font-variant-numeric: tabular-nums; }
-  #ccal { display: flex; overflow: hidden; }
-  #ccal span { min-width: 4.2vh; height: 4vh; line-height: 3.6vh; text-align: center; border: .2vh solid transparent; border-radius: .6vh; }
+  #cfoot { display: flex; align-items: center; justify-content: space-between; font-size: 2vh; font-variant-numeric: tabular-nums; }
+  #ccal { display: flex; overflow: hidden; min-width: 0; }
+  #ccal span { min-width: 3.6vh; height: 3.4vh; line-height: 3vh; text-align: center; border: .2vh solid transparent; border-radius: .5vh; }
   #ccal .past { opacity: .25; }
   #ccal .now { border-color: currentColor; font-weight: 700; }
-  #cdisc { white-space: nowrap; margin-left: 2vw; }
+  #cdisc { white-space: nowrap; margin-left: 1.6vh; }
   body.cd.blink #ctime .dg { animation: blink 1.2s steps(2, jump-none) infinite; }
   @keyframes blink { from { opacity: 1; } to { opacity: .25; } }
 </style>
@@ -81,7 +70,6 @@
 <body class="idle">
 <div id="bg"></div><div id="bg2" style="opacity:0"></div><div id="shade"></div>
 <div id="stage">
-  <div id="top">
   <img id="art" alt="">
   <div id="side">
     <div id="meta">
@@ -91,18 +79,15 @@
     </div>
     <div id="info"></div>
     <div id="bar"><span id="pos">0:00</span><div id="track"><div id="fill"></div></div><span id="dur">0:00</span></div>
-  </div>
-  </div>
-  <div id="lcd">
-    <div class="row">
-      <div><div class="lab">Track</div><div class="dg" id="dtrack"></div></div>
-      <div id="cmode"><svg class="p" viewBox="0 0 24 24"><path d="M6 3v18l15-9z"/></svg><svg class="u" viewBox="0 0 24 24"><path d="M5 3h5v18H5zM14 3h5v18h-5z"/></svg><svg class="s" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/></svg></div>
-      <div id="ctime"><div class="lab">Elapsed</div><div class="dg" id="dtime"></div></div>
-      <div class="small"><div class="lab">Remaining</div><div class="dg" id="dleft"></div></div>
-      <div class="small" id="cdl"><div class="lab">Disc remaining</div><div class="dg" id="ddisc"></div></div>
+    <div id="lcd">
+      <div class="row">
+        <div><div class="lab">Track</div><div class="dg" id="dtrack"></div></div>
+        <div id="cmode"><svg class="p" viewBox="0 0 24 24"><path d="M6 3v18l15-9z"/></svg><svg class="u" viewBox="0 0 24 24"><path d="M5 3h5v18H5zM14 3h5v18h-5z"/></svg><svg class="s" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/></svg></div>
+        <div id="ctime"><div class="lab">Elapsed</div><div class="dg" id="dtime"></div></div>
+      </div>
+      <div id="cprog"></div>
+      <div id="cfoot"><div id="ccal"></div><div id="cdisc"></div></div>
     </div>
-    <div id="cprog"></div>
-    <div id="cfoot"><div id="ccal"></div><div id="cdisc"></div></div>
   </div>
 </div>
 <div id="paused">PAUSED</div>
@@ -167,9 +152,9 @@ function bars(on) {
 }
 
 function calendar() {
-  // at most 20 numbers: the group that holds the current track (discs with up to 99 tracks)
-  const ns = cd.tracks.map(t => t.n), at = Math.max(0, ns.indexOf(cd.track)), from = Math.floor(at / 20) * 20;
-  const show = ns.slice(from, from + 20);
+  // at most 12 numbers (fits beside the cover): the group that holds the current track
+  const ns = cd.tracks.map(t => t.n), at = Math.max(0, ns.indexOf(cd.track)), from = Math.floor(at / 12) * 12;
+  const show = ns.slice(from, from + 12);
   if (!changed('cal', cd.track + '|' + show.join())) return;
   $('ccal').textContent = '';
   for (const n of show) {
@@ -181,12 +166,9 @@ function calendar() {
 
 function tickCd(pos) {
   const sum = f => cd.tracks.reduce((a, t) => a + (f(t.n) ? t.length : 0), 0);
-  const left = Math.max(0, st.duration - Math.floor(pos)), total = sum(() => true);
+  const total = sum(() => true);
   digits('dtrack', two(cd.track));
   digits('dtime', clock(pos));
-  digits('dleft', st.duration ? '-' + clock(left) : '--:--');
-  $('cdl').style.display = total ? '' : 'none';
-  if (total) digits('ddisc', '-' + clock(left + sum(n => n > cd.track)));
   bars(st.duration ? Math.round(80 * pos / st.duration) : 0);
   calendar();
   const t = total ? clock(sum(n => n < cd.track) + pos) + ' / ' + clock(total) : '';

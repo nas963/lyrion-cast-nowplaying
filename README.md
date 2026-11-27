@@ -19,9 +19,9 @@ state; a click switches it) for every player that a Cast
 screen follows, so the screen can be switched without opening the settings. The same works from the
 CLI: `<player> castnowplaying toggle`.
 
-When the player plays an audio CD from the AudioCD plugin (`audiocd://` tracks), the screen switches to
-a CD-player style display: track number, elapsed / remaining / disc remaining time in segment digits,
-a progress bar and the disc's track list.
+When the player plays an audio CD from the AudioCD plugin (`audiocd://` tracks), a CD-player style display
+takes the place of the progress bar: track number and elapsed time in segment digits, a progress bar,
+the disc's track list and the time on the disc. Cover and text stay as on the normal screen.
 
 The screen is only taken when it is free: if another app is running on the TV, or the TV is off or
 on another input, nothing is shown until playback is started again.
