@@ -23,6 +23,7 @@ use Slim::Utils::Network;
 use Slim::Utils::Prefs;
 use Slim::Utils::Timers;
 
+use Plugins::CastNowPlaying::CD;
 use Plugins::CastNowPlaying::Device;
 use Plugins::CastNowPlaying::Discovery;
 use Plugins::CastNowPlaying::MDNS;
@@ -277,7 +278,7 @@ sub _resync { _update(shift) }
 
 sub now_playing {
 	my $client = shift;
-	my $req = Slim::Control::Request::executeRequest($client, [ 'status', '-', 1, 'tags:alcdytrITKoN' ]);
+	my $req = Slim::Control::Request::executeRequest($client, [ 'status', '-', 1, 'tags:alcdytrITKoNu' ]);
 	my $r = $req ? $req->getResults : {};
 	my $t = ($r->{playlist_loop} || [])->[0] || {};
 	my $base = Slim::Utils::Network::serverURL();
@@ -317,6 +318,16 @@ sub now_playing {
 		elapsed  => ($r->{time} // 0) + 0,
 		playing  => $mode eq 'play' ? JSON::PP::true() : JSON::PP::false(),
 	};
+	# audio CD: the receiver shows its CD-player screen when this is present
+	if (Plugins::CastNowPlaying::CD::parse_url($t->{url})) {
+		my $st = eval {
+			my $q = Slim::Control::Request::executeRequest(undef, [ 'audiocd', 'status' ]);
+			$q && !$q->isStatusError ? $q->getResults : undef;
+		};
+		$msg->{cd} = Plugins::CastNowPlaying::CD::info($t->{url}, $st);
+		$msg->{cd}{waiting} = $r->{waitingToPlay} ? JSON::PP::true() : JSON::PP::false();
+		$msg->{cd}{mode} = $mode;
+	}
 	return ($msg, $mode);
 }
 

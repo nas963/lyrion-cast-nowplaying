@@ -36,11 +36,52 @@
     font-size: 3vh; color: var(--fg3); }
   body.idle #stage, body.idle #bg, body.idle #bg2 { display: none; }
   body.idle #idle { display: flex; }
+
+  /* audio CD: cover and text on top, CD-player style display across the bottom */
+  #top { display: contents; }
+  #lcd { display: none; }
+  body.cd #stage { flex-direction: column; align-items: stretch; gap: 3.5vh; }
+  body.cd #top { display: flex; flex: 1; min-height: 0; align-items: center; gap: 4vw; }
+  body.cd #art { height: 50vh; width: 50vh; }
+  body.cd #side { height: 50vh; }
+  body.cd #meta { text-align: left; gap: 2.4vh; }
+  body.cd #info { text-align: left; margin: 0; }
+  body.cd #bar, body.cd #paused { display: none; }
+  body.cd #bg, body.cd #bg2 { filter: blur(60px) saturate(1.1) brightness(.28); }
+  body.cd #lcd { display: block; flex: none; padding: 2.6vh 2.4vw 2.4vh; color: #62e6f5; background: #070d10;
+    border: .25vh solid #26343a; border-radius: 1.4vh; box-shadow: 0 1.5vh 5vh rgba(0,0,0,.6), inset 0 0 6vh rgba(98,230,245,.05); }
+  .row { display: flex; align-items: flex-end; }
+  .lab { font-size: 1.9vh; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 1.2vh; opacity: .85; white-space: nowrap; }
+  .dg { display: flex; height: 13vh; transform: skewX(-5deg); transform-origin: bottom; }
+  .dg svg { height: 100%; width: auto; margin-right: 1vh; overflow: visible; display: block; filter: drop-shadow(0 0 .9vh rgba(98,230,245,.45)); }
+  .dg svg:last-child { margin-right: 0; }
+  .dg polygon, .dg rect { fill: #62e6f5; opacity: .07; }
+  .dg .on { opacity: 1; }
+  #cmode { width: 7vh; height: 7vh; margin: 0 0 3vh 3.4vw; }
+  #cmode svg { width: 100%; height: 100%; fill: currentColor; display: none; }
+  #cmode[data-m="play"] .p, #cmode[data-m="pause"] .u, #cmode[data-m="stop"] .s { display: block; }
+  #ctime { margin: 0 auto; }
+  .small { text-align: right; min-width: 22vh; }
+  .small .dg { height: 7.2vh; justify-content: flex-end; }
+  .small .dg svg { margin-right: .6vh; }
+  .small + .small { margin-left: 2.6vw; }
+  #cprog { display: flex; margin: 2.4vh 0 2vh; height: 1.5vh; }
+  #cprog i { flex: 1; margin-right: .35vh; background: currentColor; opacity: .1; transform: skewX(-12deg); }
+  #cprog i.on { opacity: 1; }
+  #cfoot { display: flex; align-items: center; justify-content: space-between; font-size: 2.4vh; font-variant-numeric: tabular-nums; }
+  #ccal { display: flex; overflow: hidden; }
+  #ccal span { min-width: 4.2vh; height: 4vh; line-height: 3.6vh; text-align: center; border: .2vh solid transparent; border-radius: .6vh; }
+  #ccal .past { opacity: .25; }
+  #ccal .now { border-color: currentColor; font-weight: 700; }
+  #cdisc { white-space: nowrap; margin-left: 2vw; }
+  body.cd.blink #ctime .dg { animation: blink 1.2s steps(2, jump-none) infinite; }
+  @keyframes blink { from { opacity: 1; } to { opacity: .25; } }
 </style>
 </head>
 <body class="idle">
 <div id="bg"></div><div id="bg2" style="opacity:0"></div><div id="shade"></div>
 <div id="stage">
+  <div id="top">
   <img id="art" alt="">
   <div id="side">
     <div id="meta">
@@ -50,6 +91,18 @@
     </div>
     <div id="info"></div>
     <div id="bar"><span id="pos">0:00</span><div id="track"><div id="fill"></div></div><span id="dur">0:00</span></div>
+  </div>
+  </div>
+  <div id="lcd">
+    <div class="row">
+      <div><div class="lab">Track</div><div class="dg" id="dtrack"></div></div>
+      <div id="cmode"><svg class="p" viewBox="0 0 24 24"><path d="M6 3v18l15-9z"/></svg><svg class="u" viewBox="0 0 24 24"><path d="M5 3h5v18H5zM14 3h5v18h-5z"/></svg><svg class="s" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/></svg></div>
+      <div id="ctime"><div class="lab">Elapsed</div><div class="dg" id="dtime"></div></div>
+      <div class="small"><div class="lab">Remaining</div><div class="dg" id="dleft"></div></div>
+      <div class="small" id="cdl"><div class="lab">Disc remaining</div><div class="dg" id="ddisc"></div></div>
+    </div>
+    <div id="cprog"></div>
+    <div id="cfoot"><div id="ccal"></div><div id="cdisc"></div></div>
   </div>
 </div>
 <div id="paused">PAUSED</div>
@@ -87,6 +140,59 @@ function setCover(url) {
   img.src = url;
 }
 
+// ---- audio CD display
+let cd = null;
+const last = {};
+const SEG = { '0': '1111110', '1': '0110000', '2': '1101101', '3': '1111001', '4': '0110011', '5': '1011011',
+  '6': '1011111', '7': '1110000', '8': '1111111', '9': '1111011', '-': '0000001' };
+const POLY = ['9,0 51,0 43,9 17,9', '54,3 60,9 60,44 55,49 50,43 50,13', '55,51 60,56 60,91 54,97 50,87 50,57',
+  '17,91 43,91 51,100 9,100', '6,97 0,91 0,56 5,51 10,57 10,87', '6,3 10,13 10,43 5,49 0,44 0,9', '13,45 47,45 53,50 47,55 13,55 7,50'];
+
+function changed(key, v) { if (last[key] === v) return false; last[key] = v; return true; }
+function two(n) { return String(n).padStart(2, '0'); }
+function clock(s) { s = Math.max(0, Math.floor(s || 0)); return two(Math.floor(s / 60)) + ':' + two(s % 60); }
+
+function digits(id, text) {
+  if (!changed(id, text)) return;
+  $(id).innerHTML = text.split('').map(c => c === ':'
+    ? '<svg viewBox="0 0 12 100"><rect class="on" x="1" y="26" width="10" height="11"/><rect class="on" x="1" y="64" width="10" height="11"/></svg>'
+    : '<svg viewBox="0 0 60 100">' + POLY.map((p, i) => `<polygon points="${p}"${(SEG[c] || '')[i] === '1' ? ' class="on"' : ''}/>`).join('') + '</svg>').join('');
+}
+
+function bars(on) {
+  const box = $('cprog');
+  while (box.children.length < 80) box.appendChild(document.createElement('i'));
+  if (!changed('bars', on)) return;
+  for (let i = 0; i < 80; i++) box.children[i].className = i < on ? 'on' : '';
+}
+
+function calendar() {
+  // at most 20 numbers: the group that holds the current track (discs with up to 99 tracks)
+  const ns = cd.tracks.map(t => t.n), at = Math.max(0, ns.indexOf(cd.track)), from = Math.floor(at / 20) * 20;
+  const show = ns.slice(from, from + 20);
+  if (!changed('cal', cd.track + '|' + show.join())) return;
+  $('ccal').textContent = '';
+  for (const n of show) {
+    const s = document.createElement('span');
+    s.textContent = n; s.className = n === cd.track ? 'now' : n < cd.track ? 'past' : '';
+    $('ccal').appendChild(s);
+  }
+}
+
+function tickCd(pos) {
+  const sum = f => cd.tracks.reduce((a, t) => a + (f(t.n) ? t.length : 0), 0);
+  const left = Math.max(0, st.duration - Math.floor(pos)), total = sum(() => true);
+  digits('dtrack', two(cd.track));
+  digits('dtime', clock(pos));
+  digits('dleft', st.duration ? '-' + clock(left) : '--:--');
+  $('cdl').style.display = total ? '' : 'none';
+  if (total) digits('ddisc', '-' + clock(left + sum(n => n > cd.track)));
+  bars(st.duration ? Math.round(80 * pos / st.duration) : 0);
+  calendar();
+  const t = total ? clock(sum(n => n < cd.track) + pos) + ' / ' + clock(total) : '';
+  if (changed('cdisc', t)) $('cdisc').textContent = t;
+}
+
 function render(m) {
   if (m.type === 'idle') { document.body.className = 'idle'; return; }
   document.body.classList.remove('idle');
@@ -96,6 +202,14 @@ function render(m) {
   $('info').textContent = m.info || '';
   setCover(m.cover);
   st = { duration: +m.duration || 0, elapsed: +m.elapsed || 0, at: performance.now(), playing: !!m.playing };
+  cd = m.cd && m.cd.track ? { track: +m.cd.track, tracks: (m.cd.tracks || []).map(t => ({ n: +t.n, length: +t.length || 0 })) } : null;
+  if (cd && m.cd.waiting) st.playing = false;
+  document.body.classList.toggle('cd', !!cd);
+  document.body.classList.toggle('blink', !!cd && (m.cd.mode === 'pause' || !!m.cd.waiting));
+  if (cd) {
+    setText($('title'), '', m.title || '');
+    $('cmode').setAttribute('data-m', m.cd.mode || 'play');
+  }
   document.body.classList.toggle('paused', !st.playing);
   tick();
 }
@@ -104,12 +218,13 @@ function tick() {
   let pos = st.elapsed;
   if (st.playing) pos += (performance.now() - st.at) / 1000;
   if (st.duration) pos = Math.min(pos, st.duration);
+  if (cd) { tickCd(pos); return; }
   $('pos').textContent = fmt(pos);
   $('dur').textContent = fmt(st.duration);
   $('bar').classList.toggle('noprog', !st.duration);
   $('fill').style.width = st.duration ? (100 * pos / st.duration).toFixed(3) + '%' : '0';
 }
-setInterval(tick, 500);
+setInterval(tick, 250);
 
 // slow drift against burn-in on OLED / plasma
 let drift = 0;
@@ -133,6 +248,9 @@ if (window.cast && cast.framework && /CrKey|Android|AFT|Web0S|Tizen/i.test(navig
   if (location.search.includes('demo')) render({ type: 'track', trackNum: 4, title: 'Basin Street Blues', artist: 'Toshio Oida',
     album: 'It Was a Very Good Year', year: 1976, duration: 248, elapsed: 134, playing: true,
     info: '798kbps VBR, 16bit, 44.1kHz, flc • 4 of 10', cover: '' });
+  if (location.search === '?cd') render({ type: 'track', trackNum: 2, title: 'Second Track Title', artist: 'Some Artist feat. Someone',
+    album: 'Album Title', year: 2007, duration: 394, elapsed: 183, playing: true, info: '16bit, FLAC \u2022 2 of 10', cover: location.hash.slice(1),
+    cd: { track: 2, mode: 'play', waiting: false, tracks: [456, 394, 459, 327, 497, 396, 344, 448, 452, 301].map((length, i) => ({ n: i + 1, length })) } });
 }
 </script>
 </body>

@@ -4,7 +4,7 @@
     <title lang="EN">Cast Now Playing</title>
   </details>
   <plugins>
-    <plugin name="CastNowPlaying" version="0.2.2" minTarget="8.0" maxTarget="*">
+    <plugin name="CastNowPlaying" version="0.3.0" minTarget="8.0" maxTarget="*">
       <title lang="EN">Cast Now Playing</title>
       <title lang="SR">Cast Now Playing</title>
       <desc lang="EN">Shows the now playing screen (cover, title, artist, album, progress) on Chromecast and Google Cast TVs.</desc>
@@ -12,8 +12,8 @@
       <creator>nas963</creator>
       <category>information</category>
       <link>https://github.com/nas963/lyrion-cast-nowplaying</link>
-      <url>https://github.com/nas963/lyrion-cast-nowplaying/releases/download/v0.2.2/CastNowPlaying-0.2.2.zip</url>
-      <sha>ef2ec88c82f1f5cbb83fa4a0dea2b538e6d2a884</sha>
+      <url>https://github.com/nas963/lyrion-cast-nowplaying/releases/download/v0.3.0/CastNowPlaying-0.3.0.zip</url>
+      <sha>f3780f3b3b308ed641175190e8942e6c7b519f39</sha>
     </plugin>
   </plugins>
 </extensions>
