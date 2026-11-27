@@ -2,14 +2,17 @@
  * VU meter drawing, shared by Material Skin (plugin VUMeter) and the Cast receiver (lyrion-cast-nowplaying,
  * receiver/vu-draw.js is a copy of this file: keep them the same).
  *
- *   var m = VUDraw.create(canvas, { style: "needles" | "bars", ref: -14, delay: 60, accent: "#e0835a" });
+ *   var m = VUDraw.create(canvas, { style: "needles" | "bars", ref: "auto" | -14, delay: 60, accent: "#e0835a" });
  *   m.push(frame[, t]) frame from the VU service: { p: [peakL, peakR], r: [rmsL, rmsR], on: 0|1 } (0..1 of full scale),
  *                      shown at time t (Date.now() ms, default now) plus `delay`
  *   m.set({ ... })     change options
  *   m.stop()           stop drawing
  *
  * Needles: classic VU instruments, linear voltage scale -20..+3 VU, 0 VU = `ref` dBFS RMS, needle with
- * VU ballistics (about 300 ms to the reading, slight overshoot), red peak lamp from -1 dBFS.
+ * VU ballistics (about 300 ms to the reading, slight overshoot), red lamp at -0.1 dBFS (clipping).
+ * ref "auto": 0 VU follows the loudness of the recording (rises within seconds when the music gets louder,
+ * falls over about a minute), so loud passages sit around 0 VU on loud and quiet masters alike and the
+ * dynamics within a piece still show.
  * Bars: LED-style bars -60..0 dBFS, RMS with fast attack and slow release, peak hold mark.
  * Frames are shown `delay` ms after they arrive (the DAC plays them a little later than they are sent).
  */
@@ -42,7 +45,8 @@
 
     function Meter(canvas, opts) {
         this.c = canvas;
-        this.o = { style: "needles", ref: -14, delay: 60, accent: "#e0835a" };
+        this.o = { style: "needles", ref: "auto", delay: 60, accent: "#e0835a" };
+        this.level = null;      // ref "auto": followed loudness, dB RMS
         this.queue = [];
         this.cur = { p: [0, 0], r: [0, 0], on: 0 };
         this.ch = [this.channel(), this.channel()];
@@ -89,13 +93,29 @@
         if (!this.queue.length && this.lastFrame && now - this.lastFrame > 1500) { this.cur = { p: [0, 0], r: [0, 0], on: 0 }; }
         if (this.queue.length) { this.lastFrame = now; }
         var on = !!this.cur.on;
+        if (on) { this.follow(Math.max(+this.cur.r[0] || 0, +this.cur.r[1] || 0), dt); }
         for (var i = 0; i < 2; ++i) { this.update(this.ch[i], on ? +this.cur.r[i] || 0 : 0, on ? +this.cur.p[i] || 0 : 0, dt, now); }
         this.draw(now);
     };
 
+    // ref "auto": loudness envelope, up with ~3 s, down with ~60 s (silence and pauses are left out)
+    Meter.prototype.follow = function (rms, dt) {
+        var d = db(rms);
+        if (d < -50 || !dt) { return; }
+        if (this.level === null) { this.level = d; return; }
+        var tau = d > this.level ? 3 : 60;
+        this.level += (d - this.level) * (1 - Math.exp(-dt / tau));
+    };
+
+    Meter.prototype.ref = function () {
+        if ("auto" != this.o.ref) { return +this.o.ref || -14; }
+        if (this.level === null) { return -14; }
+        return Math.max(-30, Math.min(-3, this.level + 1));
+    };
+
     Meter.prototype.update = function (c, rms, peak, dt, now) {
         // needle: damped spring towards the VU reading (99% in ~300 ms, ~1.5% overshoot)
-        var target = rms > 0 ? vuPos(db(rms) - (+this.o.ref || -14)) : 0;
+        var target = rms > 0 ? vuPos(db(rms) - this.ref()) : 0;
         var w = 13, z = 0.78;
         var steps = Math.max(1, Math.ceil(dt / 0.004)), h = dt / steps;
         for (var s = 0; s < steps; ++s) {
@@ -105,7 +125,7 @@
         }
         if (c.x < -0.02) { c.x = -0.02; c.v = 0; }
         if (c.x > 1.06) { c.x = 1.06; c.v = 0; }
-        if (peak >= 0.891) { c.lamp = now + 400; }
+        if (peak >= 0.9886) { c.lamp = now + 500; }      // -0.1 dBFS: at or next to clipping
         // bars: fast attack, release 24 dB/s; peak hold 1.5 s then falls 20 dB/s
         var d = db(rms), pd = db(peak);
         c.bar = d > c.bar ? d : Math.max(d, c.bar - 24 * dt);

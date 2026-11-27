@@ -231,7 +231,7 @@ function setVu(cfg) {
   document.body.classList.toggle('vu-needles', on && cfg.style !== 'bars');
   document.body.classList.toggle('vu-bars', on && cfg.style === 'bars');
   if (!on) { if (vu) { vu.stop(); vu = null; vuStyle = ''; } return; }
-  const o = { style: cfg.style, ref: +cfg.ref || -14, delay: +cfg.delay || 0, accent: document.body.classList.contains('cd') ? '#62e6f5' : getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() };
+  const o = { style: cfg.style, ref: cfg.ref === 'auto' ? 'auto' : +cfg.ref || -14, delay: +cfg.delay || 0, accent: document.body.classList.contains('cd') ? '#62e6f5' : getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() };
   if (!vu) vu = VUDraw.create($('vu'), o); else vu.set(o);
   vuStyle = cfg.style;
 }
@@ -315,7 +315,7 @@ if (window.cast && cast.framework && /CrKey|Android|AFT|Web0S|Tizen/i.test(navig
       render({ type: 'vu', fps: 30, f });
     }, 100), 300);
   }
-  const demoVu = location.search.includes('vu') ? { style: location.search.includes('bars') ? 'bars' : 'needles', ref: -14, delay: 0 } : undefined;
+  const demoVu = location.search.includes('vu') ? { style: location.search.includes('bars') ? 'bars' : 'needles', ref: 'auto', delay: 0 } : undefined;
   if (location.search.includes('demo')) render({ vu: demoVu, type: 'track', trackNum: 4, title: 'Basin Street Blues', artist: 'Toshio Oida',
     album: 'It Was a Very Good Year', year: 1976, duration: 248, elapsed: 134, playing: true,
     info: '798kbps VBR, 16bit, 44.1kHz, flc • 4 of 10', cover: location.hash.slice(1),

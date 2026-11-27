@@ -43,6 +43,9 @@ my $cfg = { tv => 'needles', ref => -14, tvDelay => 0, port => 9095 };
 $http_ok = '[{"id":"02:7D:F7:86:EE:BB","running":true}]';
 # (stub odgovara odmah, pa je spisak tu vec posle prvog poziva)
 is_deeply(Plugins::CastNowPlaying::VU::info('02:7d:f7:86:ee:bb'), { style => 'needles', ref => -14, delay => 0 }, 'lokalni plejer: info za receiver');
+$cfg->{ref} = 'auto';
+is(Plugins::CastNowPlaying::VU::info('02:7d:f7:86:ee:bb')->{ref}, 'auto', 'referentni nivo auto ide receiver-u kao tekst');
+$cfg->{ref} = -14;
 like($http[0], qr{^http://127\.0\.0\.1:9095/players$}, 'spisak plejera od servisa');
 is(Plugins::CastNowPlaying::VU::info('aa:aa:aa:aa:aa:aa'), undef, 'plejer koji servis ne vidi: nema VU-a');
 $cfg->{tv} = 'off';

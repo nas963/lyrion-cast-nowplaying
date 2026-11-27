@@ -44,7 +44,7 @@ sub info {
 	my $c = config() or return undef;
 	_refresh_players($c) if time - $LOCAL_AT > PLAYERS_EVERY;
 	return undef unless $LOCAL{ lc($mac // '') };
-	return { style => $c->{tv}, ref => $c->{ref} + 0, delay => $c->{tvDelay} + 0 };
+	return { style => $c->{tv}, ref => $c->{ref} eq 'auto' ? 'auto' : $c->{ref} + 0, delay => $c->{tvDelay} + 0 };
 }
 
 sub _refresh_players {
