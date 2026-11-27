@@ -19,4 +19,9 @@ is_deeply(Plugins::CastNowPlaying::CD::info($u, { %$st, discid => 'other' }), { 
 is_deeply(Plugins::CastNowPlaying::CD::info($u, undef), { track => 2, tracks => [] }, 'no AudioCD status');
 is_deeply(Plugins::CastNowPlaying::CD::info($u, { %$st, metadata => undef }), { track => 2, tracks => [] }, 'no metadata yet');
 
+is(Plugins::CastNowPlaying::CD::wave(undef), undef, 'no wave result');
+is(Plugins::CastNowPlaying::CD::wave({ error => 'not_ready' }), undef, 'wave not ready');
+is(Plugins::CastNowPlaying::CD::wave({ rms => [] }), undef, 'empty wave');
+is_deeply(Plugins::CastNowPlaying::CD::wave({ ok => 1, points => 4, peak => [1, 2, 3, 4], rms => [0, '512', 1200, -3] }), [0, 512, 1000, 0], 'wave: rms clamped to 0..1000');
+
 done_testing;

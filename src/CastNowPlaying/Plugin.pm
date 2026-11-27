@@ -325,6 +325,13 @@ sub now_playing {
 			$q && !$q->isStatusError ? $q->getResults : undef;
 		};
 		$msg->{cd} = Plugins::CastNowPlaying::CD::info($t->{url}, $st);
+		# talasni oblik pesme (AudioCD 1.6+), kad je izracunat; receiver ga crta ispod displeja
+		my ($discid, $n) = Plugins::CastNowPlaying::CD::parse_url($t->{url});
+		my $wave = eval {
+			my $q = Slim::Control::Request::executeRequest(undef, [ 'audiocd', 'wave', "discid:$discid", "track:$n" ]);
+			$q && !$q->isStatusError ? Plugins::CastNowPlaying::CD::wave($q->getResults) : undef;
+		};
+		$msg->{cd}{wave} = $wave if $wave;
 		$msg->{cd}{waiting} = $r->{waitingToPlay} ? JSON::PP::true() : JSON::PP::false();
 		$msg->{cd}{mode} = $mode;
 	}

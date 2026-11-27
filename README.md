@@ -22,6 +22,8 @@ CLI: `<player> castnowplaying toggle`.
 When the player plays an audio CD from the AudioCD plugin (`audiocd://` tracks), a CD-player style display
 takes the place of the progress bar: track number and elapsed time in segment digits, a progress bar,
 the disc's track list and the time on the disc. Cover and text stay as on the normal screen.
+With AudioCD 1.6 or newer, the track's waveform is shown under the display (like Roon's), once the
+track has been read into the AudioCD cache; the played part lights up.
 
 The screen is only taken when it is free: if someone casts another app to the TV, or the TV is off or
 on another input, nothing is shown until playback is started again. Android TV apps that only hold a

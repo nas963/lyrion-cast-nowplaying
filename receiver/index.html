@@ -63,6 +63,10 @@
   #ccal .past { opacity: .25; }
   #ccal .now { border-color: currentColor; font-weight: 700; }
   #cdisc { white-space: nowrap; margin-left: 1.6vh; }
+  /* talasni oblik pesme ispod displeja (kad ga AudioCD posalje); displej ostaje isti */
+  #cwave { display: none; }
+  body.cd.wave #cwave { display: block; flex: none; width: 100%; height: 9vh; margin-top: 1.8vh; padding: 1.4vh 2.2vh;
+    background: #070d10; border: .25vh solid #26343a; border-radius: 1.4vh; box-shadow: 0 1.5vh 5vh rgba(0,0,0,.6); }
   body.cd.blink #ctime .dg { animation: blink 1.2s steps(2, jump-none) infinite; }
   @keyframes blink { from { opacity: 1; } to { opacity: .25; } }
 </style>
@@ -88,6 +92,7 @@
       <div id="cprog"></div>
       <div id="cfoot"><div id="ccal"></div><div id="cdisc"></div></div>
     </div>
+    <canvas id="cwave"></canvas>
   </div>
 </div>
 <div id="paused">PAUSED</div>
@@ -164,6 +169,31 @@ function calendar() {
   }
 }
 
+// Tanke uspravne crte simetricno oko sredine (kao kod Roon-a), visina po RMS-u; odsvirani deo svetli.
+function drawWave(pos) {
+  const w = cd.wave, c = $('cwave');
+  if (!w) return;
+  const W = c.clientWidth, H = c.clientHeight;
+  if (!W || !H) return;
+  const cs = getComputedStyle(c), pl = parseFloat(cs.paddingLeft), pt = parseFloat(cs.paddingTop);
+  const iw = W - pl - parseFloat(cs.paddingRight), ih = H - pt - parseFloat(cs.paddingBottom);
+  const bars = Math.max(40, Math.floor(iw / 4));
+  const played = st.duration ? Math.round(bars * pos / st.duration) : 0;
+  if (!changed('wave', [cd.waveKey, W, H, played, st.playing].join('|'))) return;
+  if (c.width !== W) c.width = W;
+  if (c.height !== H) c.height = H;
+  const g = c.getContext('2d'), n = w.length, max = Math.max(...w) || 1, step = iw / bars, bw = Math.max(1, Math.round(step * .45));
+  g.clearRect(0, 0, W, H);
+  for (let i = 0; i < bars; i++) {
+    const a = Math.floor(i * n / bars), b = Math.max(a + 1, Math.floor((i + 1) * n / bars));
+    let v = 0;
+    for (let j = a; j < b && j < n; j++) v = Math.max(v, w[j]);
+    const h = Math.max(2, Math.round(ih * Math.min(1, v / max)));
+    g.fillStyle = i < played ? '#62e6f5' : st.playing ? 'rgba(98,230,245,.28)' : 'rgba(98,230,245,.18)';
+    g.fillRect(Math.round(pl + i * step), Math.round(pt + (ih - h) / 2), bw, h);
+  }
+}
+
 function tickCd(pos) {
   const sum = f => cd.tracks.reduce((a, t) => a + (f(t.n) ? t.length : 0), 0);
   const total = sum(() => true);
@@ -171,6 +201,7 @@ function tickCd(pos) {
   digits('dtime', clock(pos));
   bars(st.duration ? Math.round(80 * pos / st.duration) : 0);
   calendar();
+  drawWave(pos);
   const t = total ? clock(sum(n => n < cd.track) + pos) + ' / ' + clock(total) : '';
   if (changed('cdisc', t)) $('cdisc').textContent = t;
 }
@@ -184,9 +215,12 @@ function render(m) {
   $('info').textContent = m.info || '';
   setCover(m.cover);
   st = { duration: +m.duration || 0, elapsed: +m.elapsed || 0, at: performance.now(), playing: !!m.playing };
-  cd = m.cd && m.cd.track ? { track: +m.cd.track, tracks: (m.cd.tracks || []).map(t => ({ n: +t.n, length: +t.length || 0 })) } : null;
+  cd = m.cd && m.cd.track ? { track: +m.cd.track, tracks: (m.cd.tracks || []).map(t => ({ n: +t.n, length: +t.length || 0 })),
+    wave: Array.isArray(m.cd.wave) && m.cd.wave.length ? m.cd.wave.map(Number) : null } : null;
+  if (cd && cd.wave) cd.waveKey = m.cd.track + ':' + cd.wave.length + ':' + cd.wave.slice(0, 8).join();
   if (cd && m.cd.waiting) st.playing = false;
   document.body.classList.toggle('cd', !!cd);
+  document.body.classList.toggle('wave', !!(cd && cd.wave));
   document.body.classList.toggle('blink', !!cd && (m.cd.mode === 'pause' || !!m.cd.waiting));
   if (cd) {
     setText($('title'), '', m.title || '');
@@ -232,7 +266,9 @@ if (window.cast && cast.framework && /CrKey|Android|AFT|Web0S|Tizen/i.test(navig
     info: '798kbps VBR, 16bit, 44.1kHz, flc • 4 of 10', cover: '' });
   if (location.search === '?cd') render({ type: 'track', trackNum: 2, title: 'Second Track Title', artist: 'Some Artist feat. Someone',
     album: 'Album Title', year: 2007, duration: 394, elapsed: 183, playing: true, info: '16bit, FLAC \u2022 2 of 10', cover: location.hash.slice(1),
-    cd: { track: 2, mode: 'play', waiting: false, tracks: [456, 394, 459, 327, 497, 396, 344, 448, 452, 301].map((length, i) => ({ n: i + 1, length })) } });
+    cd: { track: 2, mode: 'play', waiting: false,
+      wave: location.hash.includes('nowave') ? undefined : Array.from({ length: 400 }, (_, i) => Math.round(250 + 200 * Math.sin(i / 23) * Math.sin(i / 7) + 150 * Math.min(1, i / 30) * Math.min(1, (400 - i) / 30))),
+      tracks: [456, 394, 459, 327, 497, 396, 344, 448, 452, 301].map((length, i) => ({ n: i + 1, length })) } });
 }
 </script>
 </body>

@@ -27,4 +27,11 @@ sub info {
 	return { track => $n, tracks => \@tracks };
 }
 
+# wave($audiocd_wave_result) -> [ rms 0..1000, ... ] (talasni oblik pesme) ili undef dok ga nema
+sub wave {
+	my $r = shift;
+	return undef unless ref $r eq 'HASH' && ref $r->{rms} eq 'ARRAY' && @{ $r->{rms} } && @{ $r->{rms} } <= 2000;
+	return [ map { my $v = int($_ // 0); $v < 0 ? 0 : $v > 1000 ? 1000 : $v } @{ $r->{rms} } ];
+}
+
 1;
