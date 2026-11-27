@@ -383,13 +383,18 @@ sub now_playing {
 		$msg->{cd}{mode} = $mode;
 	}
 	# lokalni fajl, ili strim kome je VUMeter snimio talas: talasni oblik iz Waveform plugina (ako je
-	# instaliran); receiver ga crta umesto trake
+	# instaliran); receiver ga crta umesto trake. Dinamicki opseg pesme (Waveform 0.6+) ide na kraj reda
+	# sa formatom: "... flc • DR12"
 	elsif (length($t->{url} // '')) {
-		my $wave = eval {
+		my $res = eval {
 			my $q = Slim::Control::Request::executeRequest(undef, [ 'waveform', 'get', "url:$t->{url}" ]);
-			$q && !$q->isStatusError ? Plugins::CastNowPlaying::CD::wave($q->getResults) : undef;
+			$q && !$q->isStatusError ? $q->getResults : undef;
 		};
+		my $wave = Plugins::CastNowPlaying::CD::wave($res);
 		$msg->{wave} = $wave if $wave;
+		if (my $dr = Plugins::CastNowPlaying::CD::dr($res)) {
+			$msg->{info} = join " \x{2022} ", grep { length } $info, $dr;
+		}
 	}
 	# VU metar (plugin VUMeter): samo za plejer koji radi na ovom serveru
 	if (my $vu = Plugins::CastNowPlaying::VU::info($client->id)) {

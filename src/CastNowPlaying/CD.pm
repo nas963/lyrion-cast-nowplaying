@@ -34,4 +34,11 @@ sub wave {
 	return [ map { my $v = int($_ // 0); $v < 0 ? 0 : $v > 1000 ? 1000 : $v } @{ $r->{rms} } ];
 }
 
+# dr($rezultat waveform get) -> "DR12" (dinamicki opseg pesme, Waveform 0.6+) ili undef
+sub dr {
+	my $r = shift;
+	return undef unless ref $r eq 'HASH' && defined $r->{dr} && $r->{dr} =~ /\A\d+(?:\.\d+)?\z/ && $r->{dr} < 100;
+	return 'DR' . int($r->{dr} + 0.5);
+}
+
 1;

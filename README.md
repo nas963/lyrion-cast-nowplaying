@@ -29,6 +29,7 @@ For local files, with the [Waveform](https://github.com/nas963/lyrion-waveform) 
 track's waveform takes the place of the progress bar; the played part is in the bar's color. Tracks
 without a waveform yet keep the plain bar. Streamed tracks (Qobuz, TIDAL...) get one too once the
 [VU Meter](https://github.com/nas963/lyrion-vumeter) plugin has recorded it.
+With Waveform 0.6 or newer, the track's dynamic range is added to the format line ("... flc • DR12").
 
 With the VU Meter plugin, a player running on the LMS machine (squeezelite with `-v`) also gets VU meters
 between the track details and the progress bar (or the CD display): analog needles or LED bars, as set
