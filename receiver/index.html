@@ -109,13 +109,13 @@
 </div>
 <div id="paused">PAUSED</div>
 <div id="idle">Lyrion Music Server</div>
-<script src="vu-draw.js?v=0.7.0"></script>
+<script src="vu-draw.js?v=0.7.1"></script>
 <script>
 'use strict';
 const NS = 'urn:x-cast:lms.nowplaying';
 // verzija receiver-a; plugin salje svoju (rv): kad se razlikuju, stranica se ucita ponovo (Chromecast inace
 // drzi staru stranicu dok se ekran ne pokrene iznova)
-const RV = '0.7.0';
+const RV = '0.7.1';
 let sender = null;
 const $ = id => document.getElementById(id);
 let st = { duration: 0, elapsed: 0, at: 0, playing: false };
