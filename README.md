@@ -27,7 +27,14 @@ track has been read into the AudioCD cache; the played part lights up.
 
 For local files, with the [Waveform](https://github.com/nas963/lyrion-waveform) plugin installed, the
 track's waveform takes the place of the progress bar; the played part is in the bar's color. Tracks
-without a waveform yet keep the plain bar.
+without a waveform yet keep the plain bar. Streamed tracks (Qobuz, TIDAL...) get one too once the
+[VU Meter](https://github.com/nas963/lyrion-vumeter) plugin has recorded it.
+
+With the VU Meter plugin, a player running on the LMS machine (squeezelite with `-v`) also gets VU meters
+between the track details and the progress bar (or the CD display): analog needles or LED bars, as set
+in the VU Meter settings. The plugin polls the local VU service every 100 ms and sends the levels to the
+receiver over the Cast channel; the receiver draws them with `receiver/vu-draw.js` (a copy of the VU
+Meter plugin's drawing code).
 
 The screen is only taken when it is free: if someone casts another app to the TV, or the TV is off or
 on another input, nothing is shown until playback is started again. Android TV apps that only hold a

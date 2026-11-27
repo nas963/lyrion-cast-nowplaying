@@ -374,6 +374,15 @@ sub _on_status {
 	}
 }
 
+# nivoi VU metra (Plugins::CastNowPlaying::VU), samo ekranu koji vec prikazuje plejer; ako se slanje
+# zaglavilo (spora mreza), novi nivoi se preskacu umesto da se gomilaju
+sub send_vu {
+	my ($self, $msg) = @_;
+	return unless $self->{state} eq 'up' && $self->{transport};
+	return if length($self->{wbuf} // '') > 32768;
+	$self->_send($self->{transport}, Plugins::CastNowPlaying::Proto::NS_NP, $msg);
+}
+
 sub _send_np {
 	my $self = shift;
 	return unless $self->{transport} && $self->{msg};

@@ -27,6 +27,7 @@ use Plugins::CastNowPlaying::CD;
 use Plugins::CastNowPlaying::Device;
 use Plugins::CastNowPlaying::Discovery;
 use Plugins::CastNowPlaying::MDNS;
+use Plugins::CastNowPlaying::VU;
 
 use constant RESYNC_EVERY => 20;     # s, re-send position while playing (corrects drift)
 use constant DEBOUNCE     => 0.3;    # s
@@ -257,6 +258,13 @@ sub _update {
 	my $power = $client->power;
 	my $mac = $client->id;
 
+	if ($mode eq 'play' && $msg->{vu}) {
+		Plugins::CastNowPlaying::VU::start($client, sub { _devices_for($mac) });
+	}
+	else {
+		Plugins::CastNowPlaying::VU::stop($client);
+	}
+
 	if (!$power || $mode eq 'stop') {
 		# stopped: playback restarting later may take the screen again
 		$_->release for @devs;
@@ -351,13 +359,18 @@ sub now_playing {
 		$msg->{cd}{waiting} = $r->{waitingToPlay} ? JSON::PP::true() : JSON::PP::false();
 		$msg->{cd}{mode} = $mode;
 	}
-	# lokalni fajl: talasni oblik iz Waveform plugina (ako je instaliran); receiver ga crta umesto trake
-	elsif (($t->{url} // '') =~ m{^file://}) {
+	# lokalni fajl, ili strim kome je VUMeter snimio talas: talasni oblik iz Waveform plugina (ako je
+	# instaliran); receiver ga crta umesto trake
+	elsif (length($t->{url} // '')) {
 		my $wave = eval {
 			my $q = Slim::Control::Request::executeRequest(undef, [ 'waveform', 'get', "url:$t->{url}" ]);
 			$q && !$q->isStatusError ? Plugins::CastNowPlaying::CD::wave($q->getResults) : undef;
 		};
 		$msg->{wave} = $wave if $wave;
+	}
+	# VU metar (plugin VUMeter): samo za plejer koji radi na ovom serveru
+	if (my $vu = Plugins::CastNowPlaying::VU::info($client->id)) {
+		$msg->{vu} = $vu;
 	}
 	return ($msg, $mode);
 }

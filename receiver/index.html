@@ -33,6 +33,12 @@
   body.fwave #track { display: none; }
   body.fwave #fwave { display: block; }
   body.fwave #bar.noprog #fwave { visibility: hidden; }
+  /* VU metar (plugin VUMeter): izmedju podataka o pesmi i trake / CD displeja */
+  #vu { display: none; flex: none; width: 100%; margin-bottom: 2.6vh; }
+  body.vu #vu { display: block; }
+  body.vu.vu-needles #vu { height: 21vh; }
+  body.vu.vu-bars #vu { height: 8vh; }
+  body.vu.cd.vu-needles #vu { height: 17vh; }
   #paused { position: absolute; top: 4vh; right: 4vw; font-size: 2vh; letter-spacing: .3em; color: var(--fg3);
     opacity: 0; transition: opacity .4s; }
   body.paused #paused { opacity: 1; }
@@ -86,6 +92,7 @@
       <div id="artist" class="clamp"></div>
       <div id="album" class="clamp"></div>
     </div>
+    <canvas id="vu"></canvas>
     <div id="info"></div>
     <div id="bar"><span id="pos">0:00</span><div id="track"><div id="fill"></div></div><canvas id="fwave"></canvas><span id="dur">0:00</span></div>
     <div id="lcd">
@@ -102,6 +109,7 @@
 </div>
 <div id="paused">PAUSED</div>
 <div id="idle">Lyrion Music Server</div>
+<script src="vu-draw.js"></script>
 <script>
 'use strict';
 const NS = 'urn:x-cast:lms.nowplaying';
@@ -215,8 +223,27 @@ function tickCd(pos) {
   if (changed('cdisc', t)) $('cdisc').textContent = t;
 }
 
+// ---- VU metar: nivoi stizu u paketima (~3 frejma na 100 ms); rasporedjuju se u vremenu da bi kretanje bilo glatko
+let vu = null, vuStyle = '';
+function setVu(cfg) {
+  const on = !!(cfg && cfg.style && cfg.style !== 'off' && window.VUDraw);
+  document.body.classList.toggle('vu', on);
+  document.body.classList.toggle('vu-needles', on && cfg.style !== 'bars');
+  document.body.classList.toggle('vu-bars', on && cfg.style === 'bars');
+  if (!on) { if (vu) { vu.stop(); vu = null; vuStyle = ''; } return; }
+  const o = { style: cfg.style, ref: +cfg.ref || -14, delay: +cfg.delay || 0, accent: document.body.classList.contains('cd') ? '#62e6f5' : getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() };
+  if (!vu) vu = VUDraw.create($('vu'), o); else vu.set(o);
+  vuStyle = cfg.style;
+}
+function onVu(m) {
+  if (!vu || !Array.isArray(m.f)) return;
+  const step = 1000 / (+m.fps || 30), now = Date.now();
+  m.f.forEach((a, i) => vu.push({ p: [a[0] / 1000, a[1] / 1000], r: [a[2] / 1000, a[3] / 1000], on: 1 }, now + i * step));
+}
+
 function render(m) {
-  if (m.type === 'idle') { document.body.className = 'idle'; return; }
+  if (m.type === 'vu') { onVu(m); return; }
+  if (m.type === 'idle') { document.body.className = 'idle'; if (vu) { vu.stop(); vu = null; } return; }
   document.body.classList.remove('idle');
   setText($('title'), m.trackNum ? String(m.trackNum).padStart(2, '0') + ' •' : '', m.title || '');
   setText($('artist'), m.artist ? 'by' : '', m.artist || '');
@@ -239,6 +266,7 @@ function render(m) {
     $('cmode').setAttribute('data-m', m.cd.mode || 'play');
   }
   document.body.classList.toggle('paused', !st.playing);
+  setVu(m.vu);
   tick();
 }
 
@@ -274,11 +302,25 @@ if (window.cast && cast.framework && /CrKey|Android|AFT|Web0S|Tizen/i.test(navig
 } else {
   // plain browser preview: index.html?demo
   window.render = render;
-  if (location.search.includes('demo')) render({ type: 'track', trackNum: 4, title: 'Basin Street Blues', artist: 'Toshio Oida',
+  if (location.search.includes('vu')) {
+    let t = 0;
+    setTimeout(() => setInterval(() => {
+      const f = [];
+      for (let k = 0; k < 3; k++) {
+        t += 1 / 30;
+        const beat = Math.pow(Math.max(0, Math.sin(t * Math.PI * 2)), 8), env = 0.16 + 0.1 * Math.sin(t / 3) + 0.12 * beat;
+        const r = [env * (1 + 0.15 * Math.sin(t * 1.7)), env * (1 + 0.15 * Math.cos(t * 1.3))];
+        f.push([...r.map(v => Math.round(1000 * Math.min(1, v * (2.2 + 1.5 * beat)))), ...r.map(v => Math.round(1000 * v))]);
+      }
+      render({ type: 'vu', fps: 30, f });
+    }, 100), 300);
+  }
+  const demoVu = location.search.includes('vu') ? { style: location.search.includes('bars') ? 'bars' : 'needles', ref: -14, delay: 0 } : undefined;
+  if (location.search.includes('demo')) render({ vu: demoVu, type: 'track', trackNum: 4, title: 'Basin Street Blues', artist: 'Toshio Oida',
     album: 'It Was a Very Good Year', year: 1976, duration: 248, elapsed: 134, playing: true,
     info: '798kbps VBR, 16bit, 44.1kHz, flc • 4 of 10', cover: location.hash.slice(1),
     wave: location.search.includes('wave') ? Array.from({ length: 400 }, (_, i) => Math.round(250 + 200 * Math.sin(i / 23) * Math.sin(i / 7) + 150 * Math.min(1, i / 30) * Math.min(1, (400 - i) / 30))) : undefined });
-  if (location.search === '?cd') render({ type: 'track', trackNum: 2, title: 'Second Track Title', artist: 'Some Artist feat. Someone',
+  if (location.search.startsWith('?cd')) render({ vu: demoVu, type: 'track', trackNum: 2, title: 'Second Track Title', artist: 'Some Artist feat. Someone',
     album: 'Album Title', year: 2007, duration: 394, elapsed: 183, playing: true, info: '16bit, FLAC \u2022 2 of 10', cover: location.hash.slice(1),
     cd: { track: 2, mode: 'play', waiting: false,
       wave: location.hash.includes('nowave') ? undefined : Array.from({ length: 400 }, (_, i) => Math.round(250 + 200 * Math.sin(i / 23) * Math.sin(i / 7) + 150 * Math.min(1, i / 30) * Math.min(1, (400 - i) / 30))),
