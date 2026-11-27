@@ -28,6 +28,11 @@
   #track { flex: 1; height: .6vh; border-radius: .3vh; background: rgba(255,255,255,.18); overflow: hidden; }
   #fill { height: 100%; width: 0; background: var(--accent); }
   #bar.noprog #track, #bar.noprog #dur { visibility: hidden; }
+  /* lokalni fajl sa talasnim oblikom (Waveform plugin): talas umesto trake, odsvirani deo u boji */
+  #fwave { display: none; flex: 1; min-width: 0; height: 5.5vh; }
+  body.fwave #track { display: none; }
+  body.fwave #fwave { display: block; }
+  body.fwave #bar.noprog #fwave { visibility: hidden; }
   #paused { position: absolute; top: 4vh; right: 4vw; font-size: 2vh; letter-spacing: .3em; color: var(--fg3);
     opacity: 0; transition: opacity .4s; }
   body.paused #paused { opacity: 1; }
@@ -82,7 +87,7 @@
       <div id="album" class="clamp"></div>
     </div>
     <div id="info"></div>
-    <div id="bar"><span id="pos">0:00</span><div id="track"><div id="fill"></div></div><span id="dur">0:00</span></div>
+    <div id="bar"><span id="pos">0:00</span><div id="track"><div id="fill"></div></div><canvas id="fwave"></canvas><span id="dur">0:00</span></div>
     <div id="lcd">
       <div class="row">
         <div><div class="lab">Track</div><div class="dg" id="dtrack"></div></div>
@@ -170,8 +175,8 @@ function calendar() {
 }
 
 // Tanke uspravne crte simetricno oko sredine (kao kod Roon-a), visina po RMS-u; odsvirani deo svetli.
-function drawWave(pos) {
-  const w = cd.wave, c = $('cwave');
+// col: [odsvirano, ostatak dok svira, ostatak u pauzi(, odsvirano u pauzi)]
+function drawWave(c, w, key, pos, col) {
   if (!w) return;
   const W = c.clientWidth, H = c.clientHeight;
   if (!W || !H) return;
@@ -179,7 +184,7 @@ function drawWave(pos) {
   const iw = W - pl - parseFloat(cs.paddingRight), ih = H - pt - parseFloat(cs.paddingBottom);
   const bars = Math.max(40, Math.floor(iw / 4));
   const played = st.duration ? Math.round(bars * pos / st.duration) : 0;
-  if (!changed('wave', [cd.waveKey, W, H, played, st.playing].join('|'))) return;
+  if (!changed(c.id, [key, W, H, played, st.playing].join('|'))) return;
   if (c.width !== W) c.width = W;
   if (c.height !== H) c.height = H;
   const g = c.getContext('2d'), n = w.length, max = Math.max(...w) || 1, step = iw / bars, bw = Math.max(1, Math.round(step * .45));
@@ -189,10 +194,13 @@ function drawWave(pos) {
     let v = 0;
     for (let j = a; j < b && j < n; j++) v = Math.max(v, w[j]);
     const h = Math.max(2, Math.round(ih * Math.min(1, v / max)));
-    g.fillStyle = i < played ? '#62e6f5' : st.playing ? 'rgba(98,230,245,.28)' : 'rgba(98,230,245,.18)';
+    g.fillStyle = i < played ? (st.playing ? col[0] : col[3] || col[0]) : st.playing ? col[1] : col[2];
     g.fillRect(Math.round(pl + i * step), Math.round(pt + (ih - h) / 2), bw, h);
   }
 }
+const CD_WAVE = ['#62e6f5', 'rgba(98,230,245,.28)', 'rgba(98,230,245,.18)'];
+const FILE_WAVE = ['#e0835a', 'rgba(255,255,255,.26)', 'rgba(255,255,255,.16)', 'rgba(255,255,255,.55)'];
+let fwave = null, fwaveKey = '';
 
 function tickCd(pos) {
   const sum = f => cd.tracks.reduce((a, t) => a + (f(t.n) ? t.length : 0), 0);
@@ -201,7 +209,7 @@ function tickCd(pos) {
   digits('dtime', clock(pos));
   bars(st.duration ? Math.round(80 * pos / st.duration) : 0);
   calendar();
-  drawWave(pos);
+  drawWave($('cwave'), cd.wave, cd.waveKey, pos, CD_WAVE);
   const t = total ? clock(sum(n => n < cd.track) + pos) + ' / ' + clock(total) : '';
   if (changed('cdisc', t)) $('cdisc').textContent = t;
 }
@@ -221,6 +229,9 @@ function render(m) {
   if (cd && m.cd.waiting) st.playing = false;
   document.body.classList.toggle('cd', !!cd);
   document.body.classList.toggle('wave', !!(cd && cd.wave));
+  fwave = !cd && Array.isArray(m.wave) && m.wave.length ? m.wave.map(Number) : null;
+  fwaveKey = fwave ? (m.title || '') + ':' + fwave.length + ':' + fwave.slice(0, 8).join() : '';
+  document.body.classList.toggle('fwave', !!fwave);
   document.body.classList.toggle('blink', !!cd && (m.cd.mode === 'pause' || !!m.cd.waiting));
   if (cd) {
     setText($('title'), '', m.title || '');
@@ -239,6 +250,7 @@ function tick() {
   $('dur').textContent = fmt(st.duration);
   $('bar').classList.toggle('noprog', !st.duration);
   $('fill').style.width = st.duration ? (100 * pos / st.duration).toFixed(3) + '%' : '0';
+  if (fwave) drawWave($('fwave'), fwave, fwaveKey, pos, FILE_WAVE);
 }
 setInterval(tick, 250);
 
@@ -263,7 +275,8 @@ if (window.cast && cast.framework && /CrKey|Android|AFT|Web0S|Tizen/i.test(navig
   window.render = render;
   if (location.search.includes('demo')) render({ type: 'track', trackNum: 4, title: 'Basin Street Blues', artist: 'Toshio Oida',
     album: 'It Was a Very Good Year', year: 1976, duration: 248, elapsed: 134, playing: true,
-    info: '798kbps VBR, 16bit, 44.1kHz, flc • 4 of 10', cover: '' });
+    info: '798kbps VBR, 16bit, 44.1kHz, flc • 4 of 10', cover: location.hash.slice(1),
+    wave: location.search.includes('wave') ? Array.from({ length: 400 }, (_, i) => Math.round(250 + 200 * Math.sin(i / 23) * Math.sin(i / 7) + 150 * Math.min(1, i / 30) * Math.min(1, (400 - i) / 30))) : undefined });
   if (location.search === '?cd') render({ type: 'track', trackNum: 2, title: 'Second Track Title', artist: 'Some Artist feat. Someone',
     album: 'Album Title', year: 2007, duration: 394, elapsed: 183, playing: true, info: '16bit, FLAC \u2022 2 of 10', cover: location.hash.slice(1),
     cd: { track: 2, mode: 'play', waiting: false,

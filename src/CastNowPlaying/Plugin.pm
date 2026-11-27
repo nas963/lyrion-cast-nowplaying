@@ -58,6 +58,8 @@ sub initPlugin {
 
 	Slim::Control::Request::subscribe(\&_onEvent,
 		[[ 'playlist', 'play', 'pause', 'stop', 'mode', 'time', 'power', 'client' ]]);
+	# Waveform plugin javi kad je talas pesme upisan: ekrani koji je sviraju ga dobijaju odmah
+	Slim::Control::Request::subscribe(\&_onWave, [ ['waveform'], ['ready'] ]);
 
 	# castnowplaying toggle: turns the Cast screens that follow this player on or off
 	Slim::Control::Request::addDispatch([ 'castnowplaying', 'toggle' ], [ 1, 0, 0, \&_cliToggle ]);
@@ -136,6 +138,7 @@ sub toggle {
 
 sub shutdownPlugin {
 	Slim::Control::Request::unsubscribe(\&_onEvent);
+	Slim::Control::Request::unsubscribe(\&_onWave);
 	Plugins::CastNowPlaying::Discovery->stop;
 	$_->shutdown for values %DEV;
 	%DEV = ();
@@ -229,6 +232,17 @@ sub _onEvent {
 	return unless _devices_for($mac);
 	Slim::Utils::Timers::killTimers($client, \&_update);
 	Slim::Utils::Timers::setTimer($client, Time::HiRes::time() + DEBOUNCE, \&_update);
+}
+
+sub _onWave {
+	my $request = shift;
+	my $url = $request->getRequest(2) // return;
+	for my $client (grep { defined } map { Slim::Player::Client::getClient($_) } _followed_players()) {
+		my $song = eval { Slim::Player::Playlist::song($client, Slim::Player::Source::playingSongIndex($client)) };
+		next unless $song && eval { $song->url } && $song->url eq $url;
+		Slim::Utils::Timers::killTimers($client, \&_update);
+		Slim::Utils::Timers::setTimer($client, Time::HiRes::time() + DEBOUNCE, \&_update);
+	}
 }
 
 sub _update {
@@ -334,6 +348,14 @@ sub now_playing {
 		$msg->{cd}{wave} = $wave if $wave;
 		$msg->{cd}{waiting} = $r->{waitingToPlay} ? JSON::PP::true() : JSON::PP::false();
 		$msg->{cd}{mode} = $mode;
+	}
+	# lokalni fajl: talasni oblik iz Waveform plugina (ako je instaliran); receiver ga crta umesto trake
+	elsif (($t->{url} // '') =~ m{^file://}) {
+		my $wave = eval {
+			my $q = Slim::Control::Request::executeRequest(undef, [ 'waveform', 'get', "url:$t->{url}" ]);
+			$q && !$q->isStatusError ? Plugins::CastNowPlaying::CD::wave($q->getResults) : undef;
+		};
+		$msg->{wave} = $wave if $wave;
 	}
 	return ($msg, $mode);
 }

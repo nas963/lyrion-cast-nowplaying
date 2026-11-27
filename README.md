@@ -25,6 +25,10 @@ the disc's track list and the time on the disc. Cover and text stay as on the no
 With AudioCD 1.6 or newer, the track's waveform is shown under the display (like Roon's), once the
 track has been read into the AudioCD cache; the played part lights up.
 
+For local files, with the [Waveform](https://github.com/nas963/lyrion-waveform) plugin installed, the
+track's waveform takes the place of the progress bar; the played part is in the bar's color. Tracks
+without a waveform yet keep the plain bar.
+
 The screen is only taken when it is free: if someone casts another app to the TV, or the TV is off or
 on another input, nothing is shown until playback is started again. Android TV apps that only hold a
 media session in the background (reported as "AndroidNativeApp", e.g. a paused VLC) do not count.
