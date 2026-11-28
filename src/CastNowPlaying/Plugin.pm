@@ -58,7 +58,7 @@ sub initPlugin {
 	reconfigure();
 
 	Slim::Control::Request::subscribe(\&_onEvent,
-		[[ 'playlist', 'play', 'pause', 'stop', 'mode', 'time', 'power', 'client' ]]);
+		[[ 'playlist', 'play', 'pause', 'stop', 'mode', 'time', 'power', 'client', 'mixer' ]]);
 	# Waveform plugin javi kad je talas pesme upisan: ekrani koji je sviraju ga dobijaju odmah
 	Slim::Control::Request::subscribe(\&_onWave, [ ['waveform'], ['ready'] ]);
 
@@ -395,6 +395,12 @@ sub now_playing {
 		if (my $dr = Plugins::CastNowPlaying::CD::dr($res)) {
 			$msg->{info} = join " \x{2022} ", grep { length } $info, $dr;
 		}
+	}
+	# jacina zvuka (kao u Material-u): 0-100, utisano kad je "mixer volume" negativan; fiksna jacina
+	# (digitalVolumeControl 0) se prikazuje kao takva, daljinski je ne menja
+	if (defined(my $vol = $r->{'mixer volume'})) {
+		my $fixed = eval { !(preferences('server')->client($client)->get('digitalVolumeControl') // 1) };
+		$msg->{volume} = Plugins::CastNowPlaying::CD::volume($vol, $fixed);
 	}
 	# VU metar (plugin VUMeter): samo za plejer koji radi na ovom serveru
 	if (my $vu = Plugins::CastNowPlaying::VU::info($client->id)) {

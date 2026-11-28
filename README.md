@@ -37,6 +37,9 @@ in the VU Meter settings. The plugin polls the local VU service every 100 ms and
 receiver over the Cast channel; the receiver draws them with `receiver/vu-draw.js` (a copy of the VU
 Meter plugin's drawing code).
 
+The player's volume is shown at the top right like in Material (speaker, bar, percent; MUTE when muted,
+FIXED for fixed volume); it is highlighted for a moment when it changes, e.g. from a remote.
+
 The screen is only taken when it is free: if someone casts another app to the TV, or the TV is off or
 on another input, nothing is shown until playback is started again. Android TV apps that only hold a
 media session in the background (reported as "AndroidNativeApp", e.g. a paused VLC) do not count.

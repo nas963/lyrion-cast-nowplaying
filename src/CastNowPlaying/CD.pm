@@ -6,6 +6,8 @@ package Plugins::CastNowPlaying::CD;
 use strict;
 use warnings;
 
+use JSON::PP ();
+
 # parse_url($url) -> ($discid, $track) or ()
 sub parse_url {
 	my $url = shift // '';
@@ -39,6 +41,17 @@ sub dr {
 	my $r = shift;
 	return undef unless ref $r eq 'HASH' && defined $r->{dr} && $r->{dr} =~ /\A\d+(?:\.\d+)?\z/ && $r->{dr} < 100;
 	return 'DR' . int($r->{dr} + 0.5);
+}
+
+# volume($mixer_volume, $fixed) -> { level 0..100, muted, fixed } (jacina kao u Material-u) ili undef.
+# LMS javlja utisanu jacinu kao negativnu vrednost (-30 = utisano, bilo je 30).
+sub volume {
+	my ($v, $fixed) = @_;
+	return undef unless defined $v && $v =~ /\A-?\d+(?:\.\d+)?\z/;
+	my $level = int(abs($v) + 0.5);
+	$level = 100 if $level > 100;
+	return { level => $level + 0, muted => ($v < 0 ? JSON::PP::true() : JSON::PP::false()),
+		fixed => ($fixed ? JSON::PP::true() : JSON::PP::false()) };
 }
 
 1;

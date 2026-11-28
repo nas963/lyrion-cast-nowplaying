@@ -28,4 +28,15 @@ is(Plugins::CastNowPlaying::CD::wave({ error => 'not_ready' }), undef, 'wave not
 is(Plugins::CastNowPlaying::CD::wave({ rms => [] }), undef, 'empty wave');
 is_deeply(Plugins::CastNowPlaying::CD::wave({ ok => 1, points => 4, peak => [1, 2, 3, 4], rms => [0, '512', 1200, -3] }), [0, 512, 1000, 0], 'wave: rms clamped to 0..1000');
 
+# jacina zvuka
+my $vol = sub { my $v = Plugins::CastNowPlaying::CD::volume(@_); $v ? [ $v->{level}, $v->{muted} ? 1 : 0, $v->{fixed} ? 1 : 0 ] : undef };
+is_deeply($vol->(45), [ 45, 0, 0 ], 'volume 45');
+is_deeply($vol->('-30'), [ 30, 1, 0 ], 'muted: negative value, level kept');
+is_deeply($vol->(100, 1), [ 100, 0, 1 ], 'fixed volume');
+is_deeply($vol->(37.6), [ 38, 0, 0 ], 'rounded');
+is_deeply($vol->(130), [ 100, 0, 0 ], 'clamped to 100');
+is($vol->(undef), undef, 'no volume');
+is($vol->('x'), undef, 'not a number');
+like(JSON::PP->new->canonical->encode(Plugins::CastNowPlaying::CD::volume(-20)), qr/^\{"fixed":false,"level":20,"muted":true\}$/, 'JSON for the receiver');
+
 done_testing;

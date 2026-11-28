@@ -41,6 +41,21 @@
   body.vu.cd.vu-needles #vu { height: 17vh; }
   #paused { position: absolute; top: 4vh; right: 4vw; font-size: 2vh; letter-spacing: .3em; color: var(--fg3);
     opacity: 0; transition: opacity .4s; }
+  body.hasvol #paused { top: 9vh; }
+  /* jacina zvuka (kao u Material-u): ikona, traka, procenat; pri promeni se nakratko istakne */
+  #vol { position: absolute; top: 3.4vh; right: 4vw; display: none; align-items: center; gap: 1.2vh;
+    font-size: 2.2vh; color: var(--fg2); font-variant-numeric: tabular-nums; opacity: .6;
+    transition: opacity .5s, transform .3s; transform-origin: right center; }
+  body.hasvol #vol { display: flex; }
+  #vol.hot { opacity: 1; transform: scale(1.35); color: var(--fg); }
+  #vol svg { width: 3vh; height: 3vh; fill: currentColor; flex: none; }
+  #vol .m, #vol.muted .s { display: none; }
+  #vol.muted .m { display: block; }
+  #vtrack { width: 16vh; height: .6vh; border-radius: .3vh; background: rgba(255,255,255,.22); overflow: hidden; }
+  #vfill { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  body.cd #vfill { background: #62e6f5; }
+  #vol.muted #vfill, #vol.fixed #vfill { background: var(--fg3); }
+  #vtxt { min-width: 5.4vh; text-align: right; }
   body.paused #paused { opacity: 1; }
   body.paused #fill { background: var(--fg3); }
   #idle { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
@@ -108,14 +123,15 @@
   </div>
 </div>
 <div id="paused">PAUSED</div>
+<div id="vol"><svg class="s" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg><svg class="m" viewBox="0 0 24 24"><path d="M16.5 12A4.5 4.5 0 0 0 14 8v2.2l2.45 2.45c.03-.2.05-.42.05-.65zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.8 8.8 0 0 0 21 12a9 9 0 0 0-7-8.8v2.1A7 7 0 0 1 19 12zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.1a9 9 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4 9.91 6.09 12 8.18V4z"/></svg><div id="vtrack"><div id="vfill"></div></div><span id="vtxt"></span></div>
 <div id="idle">Lyrion Music Server</div>
-<script src="vu-draw.js?v=0.7.2"></script>
+<script src="vu-draw.js?v=0.7.3"></script>
 <script>
 'use strict';
 const NS = 'urn:x-cast:lms.nowplaying';
 // verzija receiver-a; plugin salje svoju (rv): kad se razlikuju, stranica se ucita ponovo (Chromecast inace
 // drzi staru stranicu dok se ekran ne pokrene iznova)
-const RV = '0.7.2';
+const RV = '0.7.3';
 let sender = null;
 const $ = id => document.getElementById(id);
 let st = { duration: 0, elapsed: 0, at: 0, playing: false };
@@ -251,6 +267,26 @@ setInterval(() => {
   if (!vu || !sender || !window.castCtx) return;
   try { window.castCtx.sendCustomMessage(NS, sender, { type: 'vu-stat', rv: RV, ...vu.stats() }); } catch (e) {}
 }, 10000);
+// ---- jacina zvuka: stize uz svaku poruku; kad se promeni (daljinski, Material), nakratko se istakne
+let volLast = null, volHot = 0;
+function setVol(v) {
+  const on = !!(v && v.level !== undefined);
+  document.body.classList.toggle('hasvol', on);
+  if (!on) { volLast = null; return; }
+  const level = Math.max(0, Math.min(100, +v.level || 0)), muted = !!v.muted, fixed = !!v.fixed;
+  const el = $('vol'), key = [level, muted, fixed].join('|');
+  el.classList.toggle('muted', muted);
+  el.classList.toggle('fixed', fixed);
+  $('vfill').style.width = (muted ? 0 : level) + '%';
+  $('vtxt').textContent = fixed ? 'FIXED' : muted ? 'MUTE' : level + '%';
+  if (volLast !== null && volLast !== key) {
+    el.classList.add('hot');
+    clearTimeout(volHot);
+    volHot = setTimeout(() => el.classList.remove('hot'), 2500);
+  }
+  volLast = key;
+}
+
 function checkVersion(rv) {
   if (!rv || rv === RV) return;
   try { if (sessionStorage.getItem('rvTried') === rv) return; sessionStorage.setItem('rvTried', rv); } catch (e) {}
@@ -284,6 +320,7 @@ function render(m) {
   }
   document.body.classList.toggle('paused', !st.playing);
   setVu(m.vu);
+  setVol(m.volume);
   tick();
 }
 
@@ -334,12 +371,13 @@ if (window.cast && cast.framework && /CrKey|Android|AFT|Web0S|Tizen/i.test(navig
       render({ type: 'vu', fps: 30, f });
     }, 100), 300);
   }
+  const demoVol = { level: 45, muted: location.search.includes('mute'), fixed: location.search.includes('fixed') };
   const demoVu = location.search.includes('vu') ? { style: location.search.includes('bars') ? 'bars' : 'needles', ref: 'auto', delay: 0 } : undefined;
-  if (location.search.includes('demo')) render({ vu: demoVu, type: 'track', trackNum: 4, title: 'Basin Street Blues', artist: 'Toshio Oida',
+  if (location.search.includes('demo')) render({ vu: demoVu, volume: demoVol, type: 'track', trackNum: 4, title: 'Basin Street Blues', artist: 'Toshio Oida',
     album: 'It Was a Very Good Year', year: 1976, duration: 248, elapsed: 134, playing: true,
     info: '798kbps VBR, 16bit, 44.1kHz, flc • 4 of 10', cover: location.hash.slice(1),
     wave: location.search.includes('wave') ? Array.from({ length: 400 }, (_, i) => Math.round(250 + 200 * Math.sin(i / 23) * Math.sin(i / 7) + 150 * Math.min(1, i / 30) * Math.min(1, (400 - i) / 30))) : undefined });
-  if (location.search.startsWith('?cd')) render({ vu: demoVu, type: 'track', trackNum: 2, title: 'Second Track Title', artist: 'Some Artist feat. Someone',
+  if (location.search.startsWith('?cd')) render({ vu: demoVu, volume: demoVol, type: 'track', trackNum: 2, title: 'Second Track Title', artist: 'Some Artist feat. Someone',
     album: 'Album Title', year: 2007, duration: 394, elapsed: 183, playing: true, info: '16bit, FLAC \u2022 2 of 10', cover: location.hash.slice(1),
     cd: { track: 2, mode: 'play', waiting: false,
       wave: location.hash.includes('nowave') ? undefined : Array.from({ length: 400 }, (_, i) => Math.round(250 + 200 * Math.sin(i / 23) * Math.sin(i / 7) + 150 * Math.min(1, i / 30) * Math.min(1, (400 - i) / 30))),
